@@ -1,0 +1,35 @@
+ <?php
+// initialize the ACL for all views
+$cache = Zend_Registry::get('cache');
+$nav = $cache->load('navigation'); 
+if (!$nav) {
+	 // main menu navigation
+	 // load the configuration
+	$navConfig = new Zend_Config_Xml(APPLICATION_PATH.'/configs/mainmenu.xml');
+	// create a navigation instance
+	$nav = new Zend_Navigation($navConfig);
+	
+	// add it to the cache
+	$cache->save($nav, 'navigation');
+} 
+
+// add it to the view
+$this->navigation($nav); 
+// access control 
+$this->navigation()->setAcl(getAclInstance());
+$this->navigation()->menu()->setPartial('index/custommainmenu.phtml');
+// add the Zend_Translate instance
+$this->navigation()->menu()->setTranslator(Zend_Registry::get("translate"));
+
+// render the high level menus only
+echo $this->navigation()->menu()->render();
+
+// render the submenu for the current page
+echo $this->navigation()->menu()->renderMenu(null, array(
+	'ulClass' => 'submenu',
+    'minDepth' => 1,
+    'maxDepth' => 2,
+    'onlyActiveBranch' => true,
+    'renderParents' => false));
+
+?>

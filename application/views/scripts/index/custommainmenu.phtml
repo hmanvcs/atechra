@@ -1,0 +1,31 @@
+<?php 
+   $html =  '<ul id="mainmenu">'; 
+   foreach ($this->container as $page) {
+   		// check if the user is allowed to see the page
+		// add false as the second parameter so that if the ACL does not allow access to the parent page
+		// the page can still be displayed. This is possible since the menus are repeated
+		// in muliple places
+   		if($this->navigation()->accept($page, true)) {
+	   		// check if it is active, also checking any contained pages
+	        $isActive = $page->isActive(true);
+	        $liClass = $isActive ? ' class="active"' : '';
+	        
+	        $liid = "";
+	        if (!isEmptyString($page->id)){
+	        	$liid = ' id="'.$page->id.'" '; 
+	        }
+	        
+	        $html .= '<li'. $liClass.$liid.'>';
+	        
+			$html .= '<a href="'.$page->getHref().'" title="'.$this->escape($this->translate($page->label)).'">';
+			// add an image if it exists
+	   		if (!isEmptyString($page->img)) {
+				$html .= '<img src="'. $this->baseUrl($page->img) .'">';
+			}
+			$html .= $this->escape($this->translate($page->label));
+			$html .= '</a>'; 
+   		} 
+    }
+    $html .= '</ul>';
+    echo $html; 
+?>

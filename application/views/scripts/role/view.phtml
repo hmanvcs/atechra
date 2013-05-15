@@ -1,0 +1,111 @@
+<?php 
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$request = Zend_Controller_Front::getInstance()->getRequest();
+	
+	$resource = "Role";	
+	$action = ACTION_VIEW;
+	
+	#create object
+	$aclgroup = new AclGroup;
+	$resourcelookuptype = new LookupType;
+	$resourcelookuptype->setName("ALL_RESOURCES");
+	$resourcearray = $resourcelookuptype->getOptionValuesFromQuery();
+	
+	$definedactions = ACL::getActions();
+	
+	#Populate or retrive the entry using the above id. 
+	$aclgroup->populate(decode($request->id));
+	
+	$title = $aclgroup->getName()."'s Permissions";
+	$this->headTitle($title); 
+?>
+<script>
+	$(document).ready(function() {
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to Delete this Role? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 
+	}); 
+</script>
+<table class="formtable">
+	<thead>
+	<tr>
+        <td colspan="2"><?php echo $this->translate("role_section_general"); ?></td>
+    </tr> </thead>   
+    <tr>
+        <td class="label"><?php echo $this->translate("role_name_label"); ?>:</td>
+        <td><?php echo $aclgroup->getName(); ?></td>        
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("role_description_label"); ?>:</td>
+        <td><?php echo $aclgroup->getDescription(); ?></td>
+    </tr>
+</table><br />
+        	<table id="permissions" class="formtable">
+					<caption><?php echo $this->translate("role_section_permissions"); ?></caption>
+                <thead>
+                    <tr>
+                    	<td><?php echo $this->translate("role_resource_label"); ?></td>                    	
+						<?php
+                            foreach($definedactions as $value) {
+                        ?>
+                        <td><?php echo ucfirst($value); ?></td>
+                        <?php 
+                            } // end creating the header column for each action
+                        ?> 
+                    </tr>
+                </thead>
+                <tbody>
+					<?php 
+						foreach($resourcearray as $resourceid => $resourceName) {
+						// load the permission instance for the specified resource, since for each group and resource there is only one permission instance
+						$theresource = new AclResource();
+						$theresource->populate($resourceid);
+						//debugMessage($resource->toArray());
+						$permission = $aclgroup->getPermissionForResource($resourceid); 
+                    ?>
+                    <tr>
+                    	<td class="label"><?php echo $resourceName; ?></td>                            
+						<?php 
+                        	foreach($definedactions as $theaction) {
+                        		if($theresource->get($theaction) == 1) {
+                        ?>
+                    			<td align="center">
+									<?php echo ($permission->checkPermissionForAction($theaction) ? 
+                                    '<img src="'.$this->baseUrl("images/tick.png").'" alt="Permission Granted" />' : 
+                                    '<img src="'.$this->baseUrl("images/cross.png").'" alt="Permission Denied" />');  
+                                    ?>
+                                </td>                        
+                    	<?php } else { ?>
+                    			<td>&nbsp;</td>     
+						<?php 
+                                }// end checking if there are available permissions
+                            } // end creating checkboxes for each available action
+                        ?>  
+                    </tr><?php 
+                    } // end creating a row for each resource
+                    ?> 
+                </tbody> 
+  <tfoot>
+    <tr>
+      <td>&nbsp;</td>
+		<td colspan="<?php echo count($definedactions);?>"><?php if ($acl->checkPermission('Role', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('role/delete/entityname/AclGroup/id/'.encode($aclgroup->getID()).'/'.SUCCESS_MESSAGE.'/The Role has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("role/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("role_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("role_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Role', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('role/index/id/'.encode($aclgroup->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("role_button_edit_label"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("role_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Role', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('role/list'); ?>" class="positiveaction" title="<?php echo $this->translate("role_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("role_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>   
+<?php
+	$session->setVar(SUCCESS_MESSAGE, "");
+	$pageid = 11025;
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

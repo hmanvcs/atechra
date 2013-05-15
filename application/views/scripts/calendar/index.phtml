@@ -1,0 +1,85 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$thedate = $request->getParam('date'); 
+	if (isEmptyString($thedate)) {
+		$thedate = date('F, Y'); 
+	}
+	if (!isEmptyString($request->getParam('m'))) {
+		// a month and year are passed therefore the user has changed the date
+		$thedate = $request->getParam('y').'-'.$request->getParam('m'); 
+	}
+	
+	$title = sprintf($this->translate("calendar_pagetitle"), date('F, Y', strtotime($thedate))); 
+	$this->headTitle($title);
+	
+	$cal = new Calendar($request->getParam('t'), date('F j, Y', strtotime($thedate)));
+	$cal->basecolor = '8B5D3B'; // color scheme automatically generated from this value
+
+	$current_user_filter = "";
+	if (!$acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's tasks 
+		$current_user_filter = " AND ta.employeeid = '".$userid."' ";
+	}
+	// show tasks that are not completed
+	$requests_sql = "SELECT t.id, t.projectid, t.duedate, GROUP_CONCAT(ta.employeeid), p.title AS Project, t.name AS Task, DATE_FORMAT(t.duedate, '".$config->dateandtime->mysqlformat."') AS `Due Date`, GROUP_CONCAT(CONCAT(u.firstname, ' ', u.lastname) SEPARATOR '<br />') AS `Assigned To`, t.notes AS Notes, lv.lookupvaluedescription AS `Status` FROM task AS t Inner Join project AS p ON t.projectid = p.id Inner Join taskassignee AS ta ON t.id = ta.taskid Inner Join useraccount AS u INNER JOIN lookuptypevalue AS lv ON (t.`status` = lv.lookuptypevalue AND lv.lookuptypeid = 7) WHERE ta.employeeid = u.id AND t.`status` <> '3' AND (TO_DAYS(t.duedate) BETWEEN TO_DAYS('".date('Y-m', strtotime($thedate))."-01') AND TO_DAYS('".date('Y-m-t', strtotime($thedate))."'))".$current_user_filter." GROUP BY t.id";
+	//debugMessage($requests_sql);
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($requests_sql); 
+
+	$has_no_data = (count($result) == 0) ? true : false;
+	
+	$colors = array('Submitted' => '#D6FFD6', 'Approved' => '#C79810'); 
+?>
+<script>
+$(function() {   
+	  showCalendarDetails(); 
+
+	  // set the month selector form to send to search action in the calendar controller
+	  $('#month_selector').attr('action', '<?php echo $this->baseUrl('calendar/search') ?>');
+	  $('table#cal_1.calendar select').css({'height':'35px','background':'none','background-color':'#6F4A2F', 'box-shadow':'none','color':'#fff'});
+}); 
+</script>
+<style>
+
+</style>
+<h1><?php echo $title; ?></h1>
+<?php
+	if ($has_no_data) {
+		?>
+<label class="informationmessage"><?php echo sprintf($this->translate('calendar_nodata'), date('F, Y', strtotime($thedate))); ?></label>
+<?php
+	} else { 
+	?>
+	<?php
+		foreach ($result as $line) {
+			$event_details = array(
+					"title"=>$line['Task'],
+					"from"=>$line['duedate'],
+					"to"=>$line['duedate'],
+					"color" => $colors['Submitted'], 
+				); 
+			// add the description and the event type. Some details are only accessible if the user can see the PTO for other employees
+			$details = array(); 
+			// add the start and end date for the tiem off
+			$details[] =  '<b>Due Date</b>: '.$line['Due Date'];
+			$details[] =  '<b>Status</b>: '.$line['Status'];
+			
+			if ($acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) {
+				$details[] = "<b>Assigned To</b>: ".$line['Assigned To'];				
+			}
+			if (!isEmptyString($line['Notes'])) {
+					$details[] = "<b>Notes</b>: ".$line['Notes'];
+			}
+			$details[] = "<br /><a style='color:#357ABF; font-size:16px; float:right;' href='".$this->baseUrl('task/view/id/'.encode($line['id']))."' title='View more details'>view details</a><br />";
+			$event_details['details'] = implode('<br/>', $details); 
+			$cal->addEvent($event_details);
+		}
+	} 
+	// still show the calendar 
+	echo $cal->showcal();
+?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

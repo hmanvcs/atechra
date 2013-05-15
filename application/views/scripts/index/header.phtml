@@ -1,0 +1,22 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+?>
+<div id="header">
+  <div id="logo"><a href="<?php echo $this->baseUrl('index'); ?>"><img src="<?php echo $this->baseUrl('images/logo.jpg'); ?>" alt="<?php echo $this->translate('appname');?>"></a></div>
+  <div id="logotext"><a href="<?php echo $this->baseUrl('index'); ?>"><?php echo $this->translate("appname");?></a></div>
+  <ul id="toplinks">
+    <?php if(!isEmptyString($session->getVar('userid'))){ ?>
+    <li><a href="<?php echo $this->baseUrl("user/logout"); ?>" title="Logout"><img src="<?php echo $this->baseUrl("images/logout.png"); ?>" />&nbsp;Logout</a></li>
+    <li><a href="<?php echo $this->baseUrl("profile/view"); ?>" title="My Profile"><img src="<?php echo $this->baseUrl("images/menu_user.png"); ?>" />&nbsp;My Profile</a></li>
+	    <?php if($acl->checkPermission("Application Settings", ACTION_EDIT)){ ?>
+	    <li><a href="<?php echo $this->baseUrl("appconfig/overview"); ?>" title="Application Settings"><img src="<?php echo $this->baseUrl("images/settings.png"); ?>" />&nbsp;Settings</a></li>
+	    <?php } // end check for whether application settings are visible ?>
+    <?php } else { ?>
+    <li id="login"><a href="<?php echo $this->baseUrl("user/login"); ?>"><img src="<?php echo $this->baseUrl("images/login.png"); ?>" />&nbsp;Login</a></li>
+    <?php } ?>
+    <li><?php echo "Welcome, ".$session->getVar('firstname')." ".$session->getVar('lastname'); ?></li>
+  </ul>
+</div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

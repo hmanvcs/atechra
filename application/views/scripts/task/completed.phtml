@@ -1,0 +1,172 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = "Completed Tasks";
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("p.title", "t.name", "t.name", "t.status"));
+	$paginate->setFilterColumns(array("t.projectid", "ta.employeeid", "t.status"));
+	$paginate->setDefaultSortBy("t.dateclosed");	
+	$paginate->setDefaultSortOrder("DESC");
+
+	$paginate->processPost($request->getParams());
+	
+	$current_user_filter = "";
+	if (!$acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's tasks 
+		$current_user_filter = " AND ta.employeeid = '".$userid."' ";
+	}
+	$current_user_filter = " AND t.status = '3' ";
+	
+	$all_results_query = "SELECT t.id, t.projectid, GROUP_CONCAT(ta.employeeid), p.title AS Project, t.name AS Task, GROUP_CONCAT(CONCAT(u.firstname, ' ', u.lastname) SEPARATOR '<br />') AS `Assigned To`, DATE_FORMAT(t.duedate, '".$config->dateandtime->mysqlformat."') AS `Due Date`, DATE_FORMAT(t.dateclosed, '".$config->dateandtime->mysqlformat."') AS `Date Closed`, lv.lookupvaluedescription AS `Status` FROM task AS t Inner Join project AS p ON t.projectid = p.id Inner Join taskassignee AS ta ON t.id = ta.taskid Inner Join useraccount AS u INNER JOIN lookuptypevalue AS lv ON (t.`status` = lv.lookuptypevalue AND lv.lookuptypeid = 7) WHERE ta.employeeid = u.id ".$current_user_filter."".$paginate->getSearchAndFilterSQL()." GROUP BY t.id ".$paginate->getSortSQL();
+	// debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 3;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<style></style>
+<form action="<?php echo $this->baseUrl("task/completedsearch"); ?>" method="get" id="taskform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <?php if ($acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) { ?>
+            <td><?php			
+                        $employeelookup = new LookupType(); 
+                        $employeelookup->setName("ALL_USERS");
+                        $employeedropdown = new Zend_Form_Element_Select('ta'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('task_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper')
+                                    )
+                        );
+                        $employeedropdown->setValue($request->getParam('ta'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+                        echo $employeedropdown->render();	
+                    ?></td>
+            <?php } ?>
+            <td><?php			
+                        $typelookup = new LookupType(); 
+                        $typelookup->setName("ALL_PROJECTS");
+                        $typedropdown = new Zend_Form_Element_Select('t'.HTML_TABLE_COLUMN_SEPARATOR.'projectid',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('task_list_filter_project')), $typelookup->getOptionValuesFromQuery()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper')
+                                    )
+                        );
+                        $typedropdown->setValue($request->getParam('t'.HTML_TABLE_COLUMN_SEPARATOR.'projectid')); 
+                        echo $typedropdown->render();	
+                    ?></td>
+            <td></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(ERROR_MESSAGE))){ ?>
+  <label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="informationmessage"><?php echo $this->translate('task_list_norecords'); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("task_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Task', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table class="list">
+    <caption>
+    <?php echo $title; ?>
+    </caption>
+    <thead>
+      <tr>
+        <td></td>
+        <td style="width:25%;"><?php echo $paginate->getSortLinkForColumn('t.name', $this->translate('task_name_label')); ?></td>
+        <td style="width:25%;"><?php echo $paginate->getSortLinkForColumn('t.project', $this->translate("task_project_label")); ?></td>
+        <td><?php echo $this->translate('task_assignee_label'); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('t.dateclosed', $this->translate("task_dateclosed_label")); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('t.status', $this->translate("task_status_label")); ?></td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+    </thead>
+    <tbody>
+    	<tr>
+        	<td><img src="<?php echo $this->baseUrl("images/dir.png"); ?>" /></td>
+            <td colspan="8"><a href="<?php echo $this->baseUrl("task/completed"); ?>">Completed Tasks</a></td>
+        </tr>
+    </tbody>
+    <tbody>
+      <?php foreach($result as $line){ ?>
+      <tr>
+        <?php //if ($acl->checkPermission('Task', ACTION_EDIT)) { ?>
+        <td align="center" style="width:60px;"><img src="<?php echo $this->baseUrl("images/dir.png"); ?>" /></td>
+        <?php //}?>
+        <td class="nowrapping"><a href="<?php echo $this->baseUrl("task/view/id/".encode($line['id'])."/source/1"); ?>" title="<?php echo $this->translate("task_button_view"); ?>"><?php echo $line['Task']; ?></a></td>
+        <td><?php echo $line['Project']; ?></td>
+        <?php if ($acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) { ?>
+        <td class="nowrapping"><?php echo $line['Assigned To']; ?></td>
+        <?php } ?>
+        <td class="nowrapping"><?php echo $line['Date Closed']; ?></td>
+        <td class="nowrapping"><?php echo $line['Status']; ?></td>
+        <td align="center">
+        	<?php 
+				$task = new Task(); 
+				$task->populate($line['id']);
+				$countcomments = $task->getTaskComments()->count();
+			?>
+            <a href="<?php echo $this->baseUrl("taskcomment/list/tc".HTML_TABLE_COLUMN_SEPARATOR."taskid/".$line['id']); ?>" title="<?php echo $this->translate('task_button_viewcomments'); ?>" ><img src="<?php echo $countcomments == 0 ? $this->baseUrl('images/notes.png') : $this->baseUrl('images/notes_plus.png'); ?>" /></a>
+        </td>
+        <td align="center"><a href="<?php echo $this->baseUrl("taskcomment/index/taskid/".encode($line['id'])); ?>" title="<?php echo $this->translate('task_button_newcomment'); ?>" ><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /></a></td>
+      </tr>
+      <?php 						
+			} // end processing results 
+		?>
+    </tbody>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

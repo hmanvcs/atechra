@@ -1,0 +1,25 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("useraccount_pagetitle_activation_failure"); 
+	$this->headTitle($title); 
+
+?>
+
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <tr>
+    <td>
+      <?php echo $this->translate("useraccount_invalid_actkey_error"); ?><br>
+      <br>
+      <br>
+      Please contact support.</td>
+  </tr>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

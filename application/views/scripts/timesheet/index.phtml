@@ -1,0 +1,388 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	// default title is to enable adding a new organisation
+	$title = $this->translate("timesheet_pagetitle_new"); 
+	$posturl = $this->baseUrl("timesheet/create");
+	$button_title = $this->translate("timesheet_button_new");
+	
+	$timesheet = new Timesheet(); 
+	// set the employeeid, should be overidden in case of admin editing or approval
+	$timesheet->setEmployeeID($userid);
+	//debugMessage($timesheet->toArray());
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$timesheet->populate(decode($request->id));
+	} else if (!isEmptyString($request->weekendingdate)) {
+		// update the weekending date to use the week ending date of the timesheet
+		$timesheet->setWeekendingDate($request->weekendingdate);
+		$timesheet->setEmployeeID(decode($request->employeeid)); 
+		$timesheet->populateFromEmployeeIDAndWeekendingDate(); 
+	} else {
+		// new timesheet so check if there is any existing data
+		//$timesheet_details = $timesheet->getTable()->findOneByEmployeeidAndWeekendingdate($timesheet->getEmployeeID(), changeDateFromPageToMySQLFormat($timesheet->getWeekendingDate()));
+		//debugMessage($timesheet_details);
+		$timesheet->populateFromEmployeeIDAndWeekendingDate();
+		//$timesheet->populateFromEmployeeIDAndWeekendingDate(); 
+		//$timesheet->processPost($timesheet_details->toArray());
+	}
+	//debugMessage($timesheet->toArray());
+	
+	// if a timesheet has been loaded then use the edit labels 
+	if (!isEmptyString($request->id)) {
+		$title = sprintf($this->translate("timesheet_pagetitle_edit")); 
+		$button_title = $this->translate("timesheet_button_edit");
+		$posturl = $this->baseUrl("timesheet/edit"); 
+	}
+	
+	// in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$timesheet->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	# load the employee details for the timesheet
+	$employeeprojectassignments = $timesheet->getEmployeeProjectAssignments();
+	$timesheetdetailsarray = $timesheet->getTimesheetDetailsDataArray();
+	
+	$this->headTitle($title); 
+	
+	$userupdatingowntimesheet = true; 
+	if($userid != $timesheet->getEmployeeID()){
+		# admin user is view another profile
+		$userupdatingowntimesheet = false; 
+	}  
+	
+?>
+<script>
+	$(document).ready(function() {
+		// set the rows of a table to have alternating colors
+		$("table#timesheetdata tr:odd").addClass("odd");
+		
+		// for each disabled field, set the default hours to 0.00
+		$("input.disabledfield").val("");
+		
+		// allow only integers and auto format them to 2 decimal places
+		$(".numberfield").format({
+			precision: 2,
+			allow_negative:false,
+			autofix:true
+		});
+		
+		// the totals for the days of the week
+		$(".monday").sum("keyup", "#mondaytotal");
+		$(".tuesday").sum("keyup", "#tuesdaytotal");
+		$(".wednesday").sum("keyup", "#wednesdaytotal");
+		$(".thursday").sum("keyup", "#thursdaytotal");
+		$(".friday").sum("keyup", "#fridaytotal");
+		$(".saturday").sum("keyup", "#saturdaytotal");
+		$(".sunday").sum("keyup", "#sundaytotal");
+		
+		// the totals for all the days of the week
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").sum("keyup", "#weeklytotal");
+		// trigger a keyup so that the totals are computed
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").trigger("keyup");
+		// Clear the zeros 
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").each(function(){
+			if ($(this).val() == "0.00") {
+				$(this).val("");	
+			}
+		});
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").change(function(){
+			// format the hours enteres to 2 decimal places
+			var currenthours = parseFloat($(this).val());
+			var formattedhours = currenthours.toFixed(2);
+			$(this).val(formattedhours);
+		});
+		
+		$("#timesheetform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				weekendingdate_error: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				weekendingdate_error: "<?php echo $this->translate("timesheet_weekendingdate_error"); ?>"
+			}
+		});
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").each(function (item) {
+            $(this).rules("add", {
+                min: 0,
+				max: <?php echo $config->timesheet->maxhoursperday; ?>
+            });
+        });
+		
+		// set all empty fields to 0.00 then submit the form
+		$("#saveforlater").click(function(){
+			// check the totals for each day and the total for the whole week
+			checkTimesheetTotalHours();
+			// set all empty fields to 0 to prevent errors while saving
+			setEmptyFieldsToZero();
+			// set the status to 0 which is saved
+			$("#status").val(0);
+			// then submit the form
+			$('#timesheetform').submit();
+		});
+		// set all empty fields to 0.00 then submit the form
+		$("#submitforapproval").click(function(){
+			// check the totals for each day and the total for the whole week
+			checkTimesheetTotalHours();
+			// set all empty fields to 0 to prevent errors while saving
+			setEmptyFieldsToZero();
+			// set the status to 1 which is Submitted
+			$("#status").val(1);
+			// then submit the form
+			$('#timesheetform').submit();
+		});
+		
+		// reload the page to the new week ending date 
+		$("#weekendingdate").change(function(){
+			var selecteddate =  $("#weekendingdate").val();
+			//alert("Selected date: " + selecteddate);
+			// set the default dialog options
+			$("#confirmdialog").dialog(dialogOpts);
+			// add the dialog buttons 
+			$("#confirmdialog").dialog('option', 'buttons', {
+				 "Yes" : function() {
+					  			$(window.location).attr('href', "<?php echo $this->baseUrl('timesheet/index/employeeid/'.encode($timesheet->getEmployeeID()).'/weekendingdate/'); ?>" + selecteddate);	
+					  },
+				 "No" : function() {
+								 $("#weekendingdate").val($("#previousdate").val());
+								 // update the chosen list for week ending date
+								 $("#weekendingdate").trigger("liszt:updated");
+								 $(this).dialog("close");
+					  }
+			});
+			// open the dialog 
+			$('#confirmdialog').dialog('open').height('auto');
+		});
+	}); 
+	
+	// set all empty fields to 0 to prevent erros while saving
+	function setEmptyFieldsToZero() {
+		var allvaluesvalid = true; 
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").each(function(){		
+			if ($(this).val() != "") {
+				if (!checkTimesheetDecimalHours(this.value)) {
+					allvaluesvalid = false; 
+				}
+			}
+		});	
+		if (!allvaluesvalid) {
+			return false; 
+		} 
+		// set the empty fields to zeros to prevent errors while saving
+		$(".monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday").each(function(){		
+			if ($(this).val() == "") {
+				$(this).val("0.00");	
+			} 
+		});	
+		return true;
+	}
+	// ensure that all hours are entered in increments of 0.5
+	function checkTimesheetDecimalHours(hours) {
+		if ((parseFloat(hours) % 0.5) != 0) {
+			alert("Please enter timesheet hours in increments of 0.5 hours"); 
+			exit; 
+		}
+		return true; 
+	}
+	// ensure that the total hours do not exceed 40
+	function checkTimesheetTotalHours() {
+		// check the total hours for each day to make sure they do not exceed 8
+		if ($("#mondaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Monday.");
+			exit;
+		}
+		if ($("#tuesdaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Tuesday.");
+			exit;
+		}
+		if ($("#wednesdaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Wednesday.");
+			exit;
+		}
+		if ($("#thursdaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Thursday.");
+			exit;
+		}
+		if ($("#fridaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Friday.");
+			exit;
+		}
+		if ($("#saturdaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Saturday.");
+			exit;
+		}
+		if ($("#sundaytotal").html() > <?php echo $config->timesheet->maxhoursperday; ?>) {
+			alert("The total hours in a day can not exceed <?php echo $config->timesheet->maxhoursperday; ?>, please adjust your hours for Sunday.");
+			exit;
+		}
+		var totalhoursentered = $("#weeklytotal").html();
+		if ((parseFloat(totalhoursentered)) > <?php echo $config->timesheet->maxhoursperweek; ?>) {
+			alert("Please note that the maximum hours per week can not exceed <?php echo $config->timesheet->maxhoursperweek; ?> hours."); 
+			exit;
+		}
+		// return true if all checks are ok
+		return true; 
+	}
+</script>
+<style>
+input.numberfield {
+	width:50px;
+	height: 22px;
+}
+#timesheetdata td {
+	padding-left: 2px;
+}
+</style>
+<?php if (count($employeeprojectassignments) == "0") { ?>
+<!-- show a message that there are no project assigned -->
+<label class="informationmessage"><?php echo $this->translate("timesheet_no_projectassignments_error"); ?></label>
+<?php } else { ?>
+<div id="confirmdialog" class="hidden" title="Confirm change of Weekending Date">Please note changing the week ending date will reload the page, you will lose any data that you may have entered. Are sure you want to change it?</div>
+<form id="timesheetform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if ((!isEmptyString($request->id)) and ($userid != $timesheet->getEmployeeID())) { ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("timesheet_employee_label"); ?>:</td>
+      <td><?php echo $timesheet->getEmployee()->getName(); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("timesheet_weekendingdate_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php	
+	  		// hide the select/drop down when editing the timesheet
+	  		if (isEmptyString($request->id)) {
+			$cb = new Zend_Form_Element_Select('weekendingdate',
+						array(
+							'multiOptions' => getWeekendingDates(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('chzn-select')
+						)
+			);
+			$cb->setValue(date($config->dateandtime->mediumformat, strtotime($timesheet->getWeekendingDate()))); 
+			echo $cb->render();
+			?>
+        <input type="hidden" name="previousdate" id="previousdate" value="<?php echo date($config->dateandtime->mediumformat, strtotime($timesheet->getWeekendingDate())); ?>" />
+        <?php
+			} else {
+				echo date($config->dateandtime->mediumformat, strtotime($timesheet->getWeekendingDate())); ?>
+        <input type="hidden" name="weekendingdate" id="weekendingdate" value="<?php echo date($config->dateandtime->mediumformat, strtotime($timesheet->getWeekendingDate())); ?>" />
+        <?php
+			}
+		?></td>
+    </tr>
+    <?php if (!isEmptyString($request->id)) { ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("timesheet_status_label"); ?>:</td>
+      <td><?php echo $timesheet->getStatusDescription(); ?></td>
+    </tr>
+    <?php } ?>
+  </table>
+  <br />
+  <table id="timesheetdata" class="formtable">
+    <?php $weekdays = $timesheet->getDatesForDaysOfTheWeek(); ?>
+    <thead>
+      <tr>
+        <td><?php echo $this->translate("timesheet_project_label"); ?></td>
+        <?php foreach ($weekdays as $date){ ?>
+        <td align="center"><?php echo date("M d", strtotime($date))."<br>".strtoupper(date("D", strtotime($date))); ?></td>
+        <?php } ?>
+        <td><?php echo $this->translate("timesheet_totalhours_label"); ?></td>
+      </tr>
+    </thead>
+    <?php 
+		$projectcounter = 1;
+		foreach($employeeprojectassignments as $projectassignment) {	
+	?>
+    <tr>
+      <td class="label"><?php echo $projectassignment->getProject()->getTitle(); ?></td>
+      <?php foreach($weekdays as $theday) {
+				// check if this assignment has submitted timesheets
+				$key = $projectassignment->getProjectID().".".$theday;
+				$timesheetrecord = array();
+				if(isArrayKeyAnEmptyString($key, $timesheetdetailsarray)){
+					// do something
+					$timesheetrecord = $projectassignment->getBlankTimesheetRecord();
+				} else {
+					$timesheetrecord = $timesheetdetailsarray[$key];
+				}
+        	?>
+      <td align="center"><input name="timesheetdetails[<?php echo $key; ?>][hours]" type="text" class="<?php echo $timesheet->getInputClassNames($theday); ?> <?php echo $projectcounter; ?>" value="<?php echo $timesheetrecord['hours']; ?>" />
+        <input name="timesheetdetails[<?php echo $key; ?>][workday]" type="hidden" value="<?php echo $theday; ?>" />
+        <input name="timesheetdetails[<?php echo $key; ?>][projectid]" type="hidden" value="<?php echo $timesheetrecord['projectid']; ?>" />
+        <input name="timesheetdetails[<?php echo $key; ?>][clientid]" type="hidden" value="<?php echo $timesheetrecord['clientid']; ?>" />
+        <input name="timesheetdetails[<?php echo $key; ?>][employeeid]" type="hidden" value="<?php echo $timesheetrecord['employeeid']; ?>" /></td>
+      <?php } ?>
+      <td align="center"><span id="projecttotal_<?php echo $projectcounter; ?>"></span> 
+        <script>
+			$(document).ready(function(){
+					$(".<?php echo $projectcounter; ?>").sum("keyup", "#projecttotal_<?php echo $projectcounter; ?>");
+					// simulate a keyup to carry out the computation of the initial totals for each project
+					$(".<?php echo $projectcounter; ?>").trigger("keyup"); 
+			});
+		</script></td>
+    </tr>
+    <?php 
+		// increase the job counter
+		$projectcounter++;
+	} ?>
+    <tr align="right">
+      <td class="label"><?php echo $this->translate("timesheet_total_label"); ?></td>
+      <td align="center"><span id="mondaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(0); ?>
+        </span></td>
+      <td align="center"><span id="tuesdaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(1); ?>
+        </span></td>
+      <td align="center"><span id="wednesdaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(2); ?>
+        </span></td>
+      <td align="center"><span id="thursdaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(3); ?>
+        </span></td>
+      <td align="center"><span id="fridaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(4); ?>
+        </span></td>
+      <td align="center"><span id="saturdaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(5); ?>
+        </span></td>
+      <td align="center"><span id="sundaytotal">
+        <?php //echo $timesheet->getWeekdayTotalHours(6); ?>
+        </span></td>
+      <td align="center"><span id="weeklytotal">
+        <?php // echo $timesheet->getTotalHours(); ?>
+        </span></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td colspan="10"><a href="<?php echo $this->baseUrl("timesheet/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="button" class="positiveaction" id="saveforlater" name="saveforlater" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <button type="button" class="positiveaction" id="submitforapproval" name="submitforapproval" title="<?php echo $this->translate('timesheet_button_submitforapproval'); ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $this->translate('timesheet_button_submitforapproval'); ?></button>
+          <input type="hidden" name="entityname" value="Timesheet" />
+          <input type="hidden" id="employeeid" name="employeeid" value="<?php echo $timesheet->getEmployeeID(); ?>" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($timesheet->getID()); ?>" />
+          <input type="hidden" name="status" id="status" value="<?php echo $timesheet->getStatus(); ?>" />
+          <input type="hidden" name="weekendingdate" id="weekendingdate" value="<?php echo $timesheet->getWeekEndingDate(); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php } ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

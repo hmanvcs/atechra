@@ -1,0 +1,893 @@
+/* Overridden HTML tags not in the Reset */
+a, a:visited {
+	color:#357ABF; 
+}
+a:hover {
+	text-decoration:underline;
+}
+body, select, textarea, button, input, td {
+	font-family: Arial, Helvetica, Tahoma, sans-serif;	
+	font-size:14px;
+	color:#555555;
+	line-height: 1.2em;
+}
+body {
+	background-repeat:repeat-x;
+	background-image: url(../images/body_bg.jpeg);	
+}
+fieldset {
+	margin-top: 10px;
+	margin-bottom: 15px;
+}
+h1 {
+	padding-left:4px; /* To match the padding of the table.formtable to align */
+	padding-bottom: 4px;
+	font-size: 14px;
+}
+h2 {
+	color: #333333;
+	font-size: 16px;
+}
+html, body {
+	height:100%; /*makes the html the full window height*/
+}
+html {
+	overflow: auto; /* fix a scrolling problem in IE */
+	overflow-y: scroll; /* show vertical scroll bar in all browsers, to prevent page shifting for short pages */
+}
+input, textarea {
+	background-color:#FBFBFB;
+	border: 1px solid #999;
+}
+input[type="text"], input[type="password"], textarea, input.input {
+	width: 250px;
+	font-size: 14px;
+}
+input[type="text"], input[type="password"], input.input {
+	height: 30px;
+ 	*line-height: 30px; /* centers the text in IE */
+	padding: 2px;
+}
+input[type="checkbox"], input[type="radio"], input.radio, input.checkbox {
+	width: 18px;
+	border: none;
+}
+ol {
+	margin-left: 15px;
+}
+select {
+	height: 24px;
+}
+/* Styling for checkboxes and radio buttons */
+input[type="checkbox"], input[type="radio"] {
+	margin: 5px;
+}
+/** Format for a number field */
+input.numberfield {
+	text-align: right;
+	padding-right: 5px;
+	width:100px;
+	overflow:visible;
+}
+/** Format for a number field */
+input.shortinput {
+	text-align: left;
+	width:150px;
+}
+/* Styling for a field that is disabled including date fields */
+input.disabledfield, input.datefield {
+	background-color: #C5DBEC;
+}
+/** Format for date fields */
+input.datefield {
+	width: 90px;
+}
+li {
+	margin-left: 5px;
+}
+table td, table td img {
+	vertical-align: middle;
+	padding:2px;
+}
+textarea {
+	overflow: auto;
+	font-weight: normal;
+}
+textarea.htmleditor {
+	width: 500px; 
+	height: 240px; 
+}
+ul {
+	list-style: disc outside;
+	padding-left: 10px;
+}
+/* Focus for Input fields */
+*:focus, .focus {
+	outline: 2px solid rgba(254, 192, 26, 0.7) !important;
+	outline-offset: 1px !important;
+	outline-radius: 2px !important;
+}
+button:focus, input[type="reset"]:focus, input[type="button"]:focus, input[type="submit"]:focus, input[type="file"] > input[type="button"]:focus {
+	outline-radius: 4px !important;
+}
+ button:focus::-moz-focus-inner {
+ border-color: transparent !important;
+}
+ button::-moz-focus-inner, input[type="reset"]::-moz-focus-inner, input[type="button"]::-moz-focus-inner, input[type="submit"]::-moz-focus-inner, input[type="file"] > input[type="button"]::-moz-focus-inner {
+ border: 1px dotted transparent !important;
+}
+textarea:focus, button:focus, select:focus, input:focus {
+	outline-offset: -1px !important;
+}
+input[type="radio"]:focus {
+	outline-radius: 12px;
+	outline-offset: 0px !important;
+}
+a:focus {
+	outline-offset: 0px !important;
+}
+a:active {
+	outline: none !important;
+}
+/* Containers */
+#maincontainer {
+	margin:0 auto; /* center, not in IE5 */		
+	width: 988px;
+}
+#header {
+	margin-top:0;
+	height:80px;
+	color:#000;
+	position:relative;	
+}
+#header #logo {
+	float:left;
+	height:100%;
+	padding:2px;	
+}
+#header #logotext {
+	padding-top: 42px;
+}
+#header #logotext a{	
+	font-size:14px;
+	font-weight:bold;
+	color:#000;
+	text-decoration:none;
+}
+#header #toplinks {	
+	display:inline;
+	float: right;
+	position:absolute;
+	top:15px;	
+	right:5px;	
+	list-style:none;
+	font-size:12px;	
+}
+#header #toplinks img {
+	margin-bottom: -4px;
+}
+#header #toplinks li {
+	border-left: thin #333;
+	float: right;
+}
+#header #toplinks li, #header #toplinks li a {
+	font-size: 12px;
+}
+#header #toplinks li span.toplinkspacer {
+	margin:0 5px 0 5px;
+	font-weight:bold;
+}
+#header #toplinks a, #toplinks a:visited {
+	color:#A58468;
+}
+/** Main Menu Styles */
+/* Styling for the main menu */
+#mainmenu, .submenu {
+	list-style:none;
+	float:left;	
+	width:988px;
+	margin:0;
+	padding:0;	
+}
+#mainmenu {
+    height: 35px;
+	margin-left: -1px;
+} 
+.submenu {	
+	height: 32px;
+	background-color: #E6CDB7;
+	margin-top: -3px;
+	*margin-top: 4px; /*I.E Add more space for the mainmenu lists*/
+	border-radius: 4px 4px 0 0;
+	-moz-border-radius:4px 4px 0 0;
+} 
+#mainmenu li, .submenu li {
+	float:left;
+	text-align:center;
+	display:block;
+	margin:0;
+	padding:0;
+	margin-right:5px;
+	margin-left:5px;
+}
+#mainmenu li {
+	height:28px;
+	*height:33px;/*I.E Add more space for the mainmenu lists*/	
+	margin-top:4px;	
+	*margin-top:10px;	
+	background-color: #8B5D3B;
+	border-radius: 4px 4px 0 0;
+	-moz-border-radius:4px 4px 0 0;
+	margin-right:-1px;
+}
+#mainmenu li.active {
+	background-color: #E6CDB7;
+	height: 28px;
+	*height:33px;/*I.E Add more space for the mainmenu lists*/
+}
+#mainmenu li a {
+	font-weight: bold; 
+	font-size: 13px;
+	color:#FFFFFF;
+	display:block;
+	margin:0;
+	padding:5px 10px 0 15px;
+	text-decoration:none;	
+}
+#mainmenu li.active a, #mainmenu li.active:hover  {
+	color:#222222;	
+}
+
+#mainmenu li.active:hover, #mainmenu li:hover {
+	background-color: #E6CDB7;
+	height: 28px;
+	*height:33px;/*I.E Add more space for the mainmenu lists*/
+}
+#mainmenu li:hover {
+	height: 28px;
+	*height:33px;/*I.E Add more space for the mainmenu lists*/
+}
+#mainmenu li a:hover {
+	color:#222222;
+}
+#mainmenu li a img {
+	float: left;
+    height: 16px;
+    margin-left: -13px;
+    margin-right: 4px;
+    width: 16px;
+}
+.submenu li {
+	border-left: 1px solid #8B5D3B;
+    margin-left: 4px;
+    margin-right: 12px;
+    margin-top: 8px;
+    padding-left: 15px;
+}
+.submenu li:first-child {
+	border-left: none;
+}
+.submenu li a {
+	font-size:12px;
+	color:#000;
+	font-weight:bold;
+	text-decoration:none;
+}
+.submenu li a:hover {
+	color:#D67125;
+}
+.submenu li.active a {
+	color:#D67125;
+	font-weight:bold;
+}
+
+/* Other content containers */
+#contentwrapper {
+	margin:0;	
+	width:100%;
+	position:relative;
+}
+#footer {
+	clear: both;
+	margin: 15px auto 0;
+	border-top: 1px solid #E3E3E3;
+	width: 988px;
+	color: #000;
+	height: 40px;
+	padding: 18px 0 5px 0;
+	text-align: center;
+	vertical-align: middle;
+	background-image: url(../images/footerbg.jpg);
+	background-repeat: no-repeat;
+	background-position: center bottom;
+	font-size: 12px;
+	margin-bottom: 5px;
+}
+
+/* Content Styles 
+	the total width of the #leftcolumn #contentcolumn and #rightcolumn divs must
+	not be greater than the total width of the 
+*/
+#contentcolumn {
+	float:left;
+	background-color: #FAFAFA;	
+	border: 1px solid #EDDACB;
+	margin:3px 0 5px 0;
+	padding:15px;
+	width:956px;
+	min-height:350px;
+	line-height:1.5em;
+}
+#contentcolumn h1, #contentcolumn h2 {
+	margin-bottom:20px;
+	padding:0;
+	color:#222222;
+	font-size:18px;
+	font-weight:bold;
+}
+#contentcolumn h2 {
+	font-size:16px;
+	margin-top: 10px;
+	margin-bottom: 15px;
+}
+/* Styling for different types of messages */
+label.successmessage {
+	border: 1px solid #c6d881;
+	background-attachment: scroll;
+	background-color: #E6EFC2;
+	background-image: url(../images/successmessage.png);
+	background-repeat: no-repeat;
+	background-position: 6px 7px;
+	*background-position: 8px 7px;
+	margin-top: 5px;
+	margin-right: 0;
+	margin-bottom: 5px;
+	margin-left: 0;
+	padding-top: 5px;
+	padding-right: 20px;
+	padding-bottom: 5px;
+	padding-left: 25px;
+	font-size: 12px;
+	display:block;
+}
+label.informationmessage {
+	border: 1px solid #FDD845;
+	background-attachment: scroll;
+	background-color: #FFF6BF;
+	background-image: url(../images/informationmessage.png);
+	background-repeat: no-repeat;
+	background-position: 6px 7px;
+	*background-position: 8px 7px;
+	margin-top: 5px;
+	margin-right: 0;
+	margin-bottom: 5px;
+	margin-left: 0;
+	padding-top: 5px;
+	padding-right: 20px;
+	padding-bottom: 5px;
+	padding-left: 25px;
+	font-size: 12px;
+	display:block;
+}
+label.error  {
+	border: 1px solid #FBC7C9;
+	background-attachment: scroll;
+	background-color: #FBE3E4;
+	background-image: url(../images/error.png);
+	background-repeat: no-repeat;
+	background-position: 6px 7px;
+	*background-position: 8px 7px;
+	margin-top: 5px;
+	margin-right: 0;
+	margin-bottom: 5px;
+	margin-left: 0;
+	padding-top: 5px;
+	padding-right: 20px;
+	padding-bottom: 5px;
+	padding-left: 25px;
+	font-size: 12px;
+	display:block;
+	color: red;
+	font-style:italic;	
+}
+/* Additional styling for error input fields */
+input.error, textarea.error, select.error {
+	border:1px dotted red;
+	color:#FF0000;
+	font-style:italic;
+	padding-left: 16px; /* spacing before the HTML element*/
+	margin:0px;
+	margin-top: 3px;
+	font-size:12px;
+}
+div.errorcontainer {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+/* Additional styling for error input fields */
+input.error, textarea.error, select.error {
+	border:1px dotted red;
+}
+div.errorcontainer {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+/* stlye to auto grow textarea  */
+textarea.expanding, textarea.notesfield {
+	/* required by IE*/
+	height: 64px;
+	/*The height of each line, this is also placed at the bottom of each text area*/
+	line-height: 16px;
+	/*The minimum height of the area, 
+	use two rows since this does not cause
+	a resizing in both IE and FF*/
+	min-height: 64px;
+	/*The maximum height of the text area, 
+	make it sufficiently large so that a lot of text can be resized*/
+	max-height: 500px;
+}
+/* Styling for Search and filter sections  */
+#search {
+	white-space:nowrap;
+	float:right;
+}
+#searchterm {
+	width:180px;
+ *height:28px;
+	height:24px !important;
+	color:#6F6F6F;
+	font-style:italic;
+	font-size:12px;
+	margin-right:5px;
+}
+#searchbutton {
+	margin-left: 0;
+	padding-right: 11px;
+}
+/* increase the height of the search term in all the pages except the left hand band */
+#contentcolumn #searchterm {
+	height:19px;
+	padding-top: 4px; /* Place the text in the middle of the control */
+}
+.filtercontainer, .noautosubmitsearchform {
+	width:956px;
+	background-color: #F2F2F2;
+	border: 1px solid #DEDEDE;
+	margin-bottom: 10px;
+}
+.filtersection {
+	width:480px;
+ *width:470px;
+	height:67px;
+	border:solid 1px #e1e1e1;
+	background-color:#FAFAFA;
+	padding:0 0 0 5px;
+}
+select.filterselect {
+	height: 31px;
+	margin-top: 5px;
+	width: 130px;
+}
+/* Styling for tables containing HTML forms and list items */
+caption {
+	height: 33px;
+	width: 958px;
+	color: #000;
+	font-weight: bold;
+	padding-top: 6px;
+	font-size: 16px;
+	text-align: left;
+	padding-left: 8px;
+	background-repeat: repeat-x;
+	background-position: left top;
+}
+table.formtable, table.list {
+	width:100%;
+	border-left:solid 1px #BBBBBB;
+	border-bottom:solid 1px #BBBBBB;
+	border-collapse: collapse;
+	margin-top: -3px;
+}
+table.formtable td {
+	border-right:solid 1px #BBBBBB;
+	border-top:solid 1px #BBBBBB;
+	height:34px;
+	padding-left: 10px;/**padding-left: 14px;*/
+}
+/* Labels for HTML form elements and data  */
+table.formtable td.label {
+	background: -moz-linear-gradient(center top, #FDFDFD, #F2F2F2) repeat scroll 0 0 transparent;
+ 	*background-color: #F2F2F2;
+ 	vertical-align:middle;
+	padding-top: 5px; 
+	text-align:left;
+	font-weight:bold;		
+	width: 200px; 
+}
+table.list {
+	border:solid 1px #D4D4D4;
+	float: left; /*Styles to control the placement of elements above and below the list table*/
+	margin-top: 10px;
+}
+/*Styles to place the pagination below the list table*/
+.pager-inner {
+	float: left;
+	width: 100%;
+	padding-top: 10px;
+}
+/*End styles to place the pagination below the list table*/
+
+table.list thead tr, table.formtable thead tr {
+	white-space:nowrap;
+	/*background: -moz-linear-gradient(center top , #E4E4E4, #CCCCCC) repeat scroll 0 0 #CCCCCC;
+	background: -webkit-gradient(linear, center top, center bottom, from(#E4E4E4), to(#CCCCCC));
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=#E4E4E4, endColorstr=#CCCCCC);*/
+	font-weight:bold;
+	background-image: url(../images/tablelistheadingbg.png);
+	background-repeat: repeat-x;
+	background-position: left top;
+	color:#4F6B72;
+	border-bottom: 1px solid #999;
+}
+table.list thead a {
+	color:#484848;
+	display: block;
+	height: 25px;
+    margin-top: -2px;
+    padding-left: 0px;
+    padding-top: 10px;
+}
+table.list thead a:hover {
+	background-image: url(../images/tablelistheadinganchorbg.png);
+	background-repeat: repeat-x;
+	background-position: left top;
+	color: #484848;
+    display: block;
+	text-decoration: none;
+}
+table.list tr td {
+	height:35px;
+	padding-left:5px;
+	border-bottom:solid 1px #D4D4D4;
+	white-space:nowrap;
+	vertical-align:middle;
+}
+table.list tr td.nowrapping {
+	white-space:normal;
+}
+/* Odd table rows for table lists to generate Zebra style look */
+table.list tbody tr {
+	background: #FFFFFF;
+}
+table.list tbody tr.odd {
+	background: #F2F2F2;
+}
+table.list tbody tr:hover {
+	background-color:#FFFFDD;
+}
+
+/* Table Footer contains links and buttons */
+table.formtable tfoot {	
+	border: 1px solid #BBBBBB;
+	padding: 12px;
+	height:50px;
+}
+table.formtable tfoot tr {
+	margin-top: 50px;
+	background-color: #F2D2AC;
+}
+table.formtable tfoot td {
+	border-right:none;
+	vertical-align:middle;
+	padding-top: 8px;
+}
+table.formtable tfoot a:first {
+	color:#777777;
+}
+
+#filter_options {
+	float:left;
+}
+
+
+/* Miscellaneous classes */
+.floatleft {
+	float: left;
+}
+.floatright {
+	float: right;
+}
+.hidden, .hideonprint, .hidden_row {
+	display:none;
+}
+.nomargin {
+	margin: 0;
+}
+.nopadding {
+	padding: 0;
+}
+/* Asterix mark for required fields */
+.requiredmark {
+	color:#FF0000;
+}
+.sortimage {
+	padding-left:5px;
+ *margin-left: 5px; /* For MS IE, needs a margin to add space between the image and the text */
+}
+/* Link and Buttons */
+a.negativeaction, a.positiveaction, button.negativeaction, button.positiveaction {
+	background: url("../images/button_global.png") repeat-x scroll 0 0 transparent;
+    border: 1px solid #AAAAAA;
+    color: #232323;
+	text-decoration:none;
+	font-size:12px;
+	font-weight:bold;
+	cursor:pointer;
+	display: -moz-inline-box;
+	display: inline-block;
+	vertical-align: top;
+	padding-left: 6px; /* space before the image on the left */
+	padding-right: 10px; /* space after the text on the right */
+ 	*padding-left: 10px; /* space before the image on the left for IE */
+ 	*padding-right: 10px; /* space before the image on the left for IE */
+	padding-top: 6px;
+	padding-bottom: 6px;
+	/*height: 1.4em;  height for the anchors only, the height for the buttons will be specified below since they requrie a larger value */
+	margin-bottom: 5px;
+	background: -moz-linear-gradient(center top , #F8F7F7, #CECECE) repeat scroll 0 0 #FFFFFF;
+	background: -webkit-gradient(linear, center top, center bottom, from(#F8F7F7), to(#CECECE));
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=#F8F7F7, endColorstr=#CECECE);
+	border:solid 1px #B6B5B5;
+	border-radius: 4px 4px 4px 4px;
+	-moz-border-radius: 4px 4px 4px 4px;
+}
+button.positiveaction, button.negativeaction {
+	/*height: 1.5em;  require a larger value than the respective anchors for the same look */
+	/* 
+		left and right hand padding values for the buttons text. 
+		Buttons require smaller values than anchors, and IE needs a smaller padding than Firefox 
+	*/
+	padding-bottom: 5px;
+	 *padding-top: 3px; /* smaller height for IE */
+	 *padding-bottom: 2px;
+	 *padding-left: 0px; /* Padding for IE */
+	 *padding-right: 0px; /* Padding for IE */
+	margin-left: 0px;
+ 	*margin-left: 9px;
+	padding-right: 14px;
+	padding-top: 7px;
+}
+a.negativeaction, button.negativeaction {
+}
+a.negativeaction:hover, button.negativeaction:hover {
+	border:1px solid #FF5151;
+	color:#d12f19;
+	background-color: #F5C0C4;
+}
+a.positiveaction:hover, button.positiveaction:hover {
+	background-color:#E6EFC2;
+	border:1px solid #C6D880;
+	color:#529214;
+}
+a.negativeaction img, a.positiveaction img, button.negativeaction img, button.positiveaction img {
+	margin-right: 4px; /* spacing between the image and the text */
+	padding-top: 2px;
+	width:12px;
+	height:12px;
+}
+button.negativeaction img, button.positiveaction img {
+	padding-top:3px;
+}
+/* Styling for the message from the browser check */
+#browsercheck {
+	margin:0 auto; /* center, not in IE5 */
+	width: 1000px;
+	background: #F9F0C3;
+	margin-bottom:5px;
+	margin-top:0px;
+	padding: 4px 8px;
+	border: 1px solid #B42E33;
+}
+/* Password Valdiation Styles */
+.password-meter {
+	position:relative;
+	width: 180px;
+}
+.password-meter-message {
+	text-align: right;
+	font-weight: bold;
+	color: #676767;
+}
+.password-meter-bg, .password-meter-bar {
+	height: 4px;
+}
+.password-meter-bg {
+	top: 8px;
+	background: #e0e0e0;
+}
+.password-meter-message-very-weak {
+	color: #aa0033;
+}
+.password-meter-message-weak {
+	color: #f5ac00;
+}
+.password-meter-message-good {
+	color: #6699cc;
+}
+.password-meter-message-strong {
+	color: #008000;
+}
+.password-meter-bg .password-meter-very-weak {
+	background: #aa0033;
+	width: 30px;
+}
+.password-meter-bg .password-meter-weak {
+	background: #f5ac00;
+	width: 60px;
+}
+.password-meter-bg .password-meter-good {
+	background: #6699cc;
+	width: 135px;
+}
+.password-meter-bg .password-meter-strong {
+	background: #008000;
+	width: 180px;
+}
+/* Lists formatting */
+#counter {
+	display: block;
+    margin-bottom: -57px;
+	margin-top: 5px;
+}
+#export, #print {
+	margin-right: 15px;
+	float: right;
+	margin-top: -8px;
+}
+#export a:hover, #print a:hover {
+	text-decoration: none;
+}
+#print {
+	margin-right: 116px;
+}
+#export a {
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
+#listcounter {
+    height: 20px;
+    margin-bottom: -21px;
+    margin-left: 482px;
+    margin-top: 30px;
+    padding-bottom: 12px;
+    padding-top: 4px;
+    text-align: right;
+    width: 50%;
+}
+
+/* Styles for the Pagination links */
+.paginationlinks {
+	text-align:center;
+	margin-top: 10px;
+}
+.paginationlinks a, .table_pagination a:visited {
+	padding: 0 5px;
+	border: 1px solid #9aafe5;
+	text-decoration: none;
+	color: #2e6ab1;
+	margin-right: 5px;
+}
+.paginationlinks a:hover, .paginationlinks a:active {
+	border: 1px solid #2b66a5;
+	color: #000;
+	background-color: #FFFF80;
+}
+.paginationlinks .page-mover-current {
+	background-color: #2A6280;
+	color: #FFF !important;
+	border-color: #2b66a5;
+	font-weight: bold;
+	cursor: default;
+	padding:1px 8px 1px 8px;
+}
+
+/* Login Widget at the top of the site */
+#loginwidget {
+	float: right;
+	margin-right:5px; 
+	width: 450px;
+	font-size: 12px;
+	margin-top:9px;
+} 
+#loginwidget table {float: right; border: 0; padding: 0;}
+
+#lwemail, #lwpassword {
+	height: 20px !important; 
+	font-size: 12px;
+	width: 200px;
+	background-color:#003366 ;
+	border:solid 1px #6699cc;
+	color:#FFFFFF;
+} 
+#loginwidget td {
+	font-size: 12px;
+	color:#FFF; 	
+}
+#loginwidget button.positiveaction {
+	padding-bottom: 0;
+	padding-top: 0;
+} 
+/* Chosen select custom styles */
+select.chzn-select {
+min-width: 250px;
+}
+.chzn-container {
+min-width:120px;
+}
+.chzn-drop {
+min-width:118px;
+}
+.chzn-container .chzn-results li {
+line-height: 120%;
+}
+/*Styles for Dashboard Widgets*/
+dl.widget {
+    background: none repeat scroll 0 0 #EEEEEE;
+    border-radius: 5px 5px 5px 5px;
+	-moz-border-radius:  5px 5px 5px 5px;
+    float: left;
+    margin-bottom: 26px;
+    margin-right: 12px;
+    padding: 6px;
+    width: 45%;
+}
+dl.widget dt, dl.widget dd {
+    background: none repeat scroll 0 0 #FFFFFF;
+    border-bottom: 1px dotted #E6CDB7;
+    border-left: 1px solid #E6CDB7;
+    float: left;
+    margin-right: -76px;
+    padding: 10px;
+    width: 49%;
+}
+dl.widget dd {
+    border-left: medium none;
+    border-right: 1px solid #E6CDB7;
+    text-align: right;
+}
+dl.widget dt:last-child {
+    border-bottom: 1px solid #E6CDB7;
+}
+dl.widget lh {
+    background: none repeat scroll 0 0 #E6CDB7;
+    border: 1px solid #E6CDB7 !important;
+    color: #222222;
+    float: left;
+    font-weight: bold;
+    padding: 10px;
+    width: 405px;
+}
+dl.widget h2 {
+   	background: none repeat scroll 0 0 #E6CDB7;
+   	border: 1px solid #E6CDB7 !important;
+    color: #222222;
+	padding: 10px;
+	width: 405px !important;
+}
+.calendar-heading select {
+	min-width:30px;
+	height:25px; 
+} 
+#breadcrumb {
+	padding-top:8px;
+	display:block;
+	clear:both;
+}
+span.titletext {
+	display:block;
+	font-size:13px;
+	color:#999999;
+	margin-top:2px;
+}

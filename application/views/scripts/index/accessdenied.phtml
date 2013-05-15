@@ -1,0 +1,18 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = sprintf($this->translate("access_denied_page_title"));
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+?>
+
+<h1><?php echo $title; ?></h1>
+<b>You do not have permission to view this page.</b><br />
+<br /><br />
+If you believe you should be able to view this page, contact the System Administrator.<br /><br />
+Click the 'Back' button below to go back to the previous page.<br /><br />
+<a href="javascript:history.go(-1)" class="positiveaction" title="Go Back to Previous Page"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" />GO BACK</a>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

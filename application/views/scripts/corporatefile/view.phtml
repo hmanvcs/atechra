@@ -1,0 +1,174 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$file = new CorporateFile();
+	
+	// $file ->getAbsoluteFolderPath();
+	if(!isEmptyString($request->ids)){
+		$hasmultiple = true;
+		$ids = decode($request->ids);
+		$files = $file->populateMultiple($ids);
+		// debugMessage($allfiles->toArray());
+	} else {
+		$hasmultiple = false;
+		$file->populate(decode($request->id));
+	}
+	
+	$file->setCreatedBy($userid);
+	// default title is to enable adding any payee
+	$title = $this->translate("corporatefile_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+<script>
+$(document).ready(function(){
+	// dialog boxes
+	$("#deletedialog, #dialog").dialog({
+		resizable: false,
+		width:450,
+		modal: true,
+		autoOpen: false
+	});
+		
+	// Confirm that the user wants to delete the vacation
+	$(".delete").click(function(e){
+		e.preventDefault();
+		var theHREF = $(this).attr("href");
+	  
+		$("#deletedialog").dialog('option', 'buttons', {
+			 "Delete" : function() {
+					$(".ui-dialog-buttonpane button:contains(Delete), .ui-dialog-buttonpane button:contains(Cancel)").hide();
+					$("#contents").hide();
+					$("#wait_delete").show();
+					window.location.href = theHREF;
+			  },
+			 "Cancel" : function() {
+			 		$(this).dialog("close");
+			  }
+		});
+		
+		// open the dialog
+		$("#deletedialog").dialog("open").height('auto');
+	});	
+});
+</script>
+<style>
+table.formtable {
+	margin-bottom:10px;
+}
+</style>
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('corporatefile_button_delete'); ?>?">
+    <span id="contents"><?php echo $this->translate('corporatefile_delete_confirmation'); ?></span>
+    <div id="wait_delete" class="hidden"><br />Deleting ...<br /><br />
+        Please Wait ..... <br /><br />
+        <img src="<?php echo $this->baseUrl("images/loading.gif"); ?>" /> 
+    </div>
+</div>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+	<?php if ($sessionhaserror) { ?>
+        <tr>
+            <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+        </tr>
+    <?php } ?>
+    <?php if(!$hasmultiple){ ?>
+        <tr>
+            <td class="label"><?php echo $this->translate("corporatefile_filename_label"); ?>:</td>
+            <td><?php echo $file->getFileName(); ?></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("corporatefile_title_label"); ?>: </td>
+          <td><?php echo $file->getTitle(); ?></td>
+        </tr>     
+        <tr>
+            <td class="label"><?php echo $this->translate("corporatefile_description_label"); ?>:</td>
+            <td><?php echo nl2br($file->getDescription()); ?></td>
+        </tr>
+        <tr>
+            <td class="label"><?php echo $this->translate("corporatefile_dateuploaded_label"); ?>:</td>
+            <td><?php echo changeMySQLDateToPageFormat($file->getDatecreated()); ?></td>
+        </tr>
+        <tr>
+            <td class="label"><?php echo $this->translate("corporatefile_uploadedby_label"); ?>:</td>
+            <td><?php echo $file->getCreator()->getName(); ?></td>
+        </tr>
+    <?php } ?>
+</table>      
+<?php if($hasmultiple){ ?>
+	<?php foreach ($files as $file){ ?>
+		<table class="formtable">  
+			<tbody id="filesection_<?php echo $file->getID(); ?>"> 
+				<tr>
+					<td class="label"><?php echo $this->translate("corporatefile_filename_label"); ?>:</td>
+					<td><?php echo $file->getFileName(); ?></td>
+				</tr>
+				<tr>
+				  <td class="label"><?php echo $this->translate("corporatefile_title_label"); ?>: </td>
+				  <td><?php echo $file->getTitle(); ?></td>
+				</tr>     
+				<tr>
+					<td class="label"><?php echo $this->translate("corporatefile_description_label"); ?>:</td>
+					<td><?php echo nl2br($file->getDescription()); ?></td>
+				</tr>
+				<tr>
+					<td class="label"><?php echo $this->translate("corporatefile_dateuploaded_label"); ?>:</td>
+					<td><?php echo changeMySQLDateToPageFormat($file->getDatecreated()); ?></td>
+				</tr>
+				<tr>
+					<td class="label"><?php echo $this->translate("corporatefile_uploadedby_label"); ?>:</td>
+					<td><?php echo $file->getCreator()->getName(); ?></td>
+				</tr>
+			</tbody>
+		</table>
+	<?php } ?>
+<?php } ?>
+<?php if(!$hasmultiple){ ?>
+	<?php if ($acl->checkPermission('Application Settings', ACTION_VIEW)) { ?>
+    <table class="formtable">
+        <thead>
+            <tr>
+                <td colspan="2">File Permissions</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="label">Allowed Access:</td>
+                <td><?php echo $file->grantList(); ?></td>
+            </tr>
+            <tr>
+                <td class="label">Denied Access:</td>
+                <td><?php echo $file->deniedList(); ?></td>
+            </tr>
+        </tbody>
+    </table>
+    <?php } ?>
+<?php } ?>
+<table class="formtable">  
+    <tfoot>
+        <tr>
+            <td colspan="2">
+            <?php if ($acl->checkPermission('Corporate File', ACTION_DELETE) && $file->getCreator()->canDeleteFiles()) { ?>
+                <a href="<?php echo $this->baseUrl('corporatefile/delete/id/'.encode($file->getID()).'/parentpath/'.encode($file->getFolder()->getAbsoluteFolderPath()).'/'.SUCCESS_MESSAGE.'/corporatefile_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("corporatefile/list/parentid/".$file->getFolderID()))); ?>" class="negativeaction delete" title="<?php echo $this->translate("corporatefile_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("corporatefile_button_delete"); ?></a>
+            <?php } ?>
+            <?php if(!$hasmultiple){ ?>
+                <?php if ($acl->checkPermission('Corporate File', ACTION_EDIT) && $file->getCreator()->canUploadFiles()) { ?>
+                    <a href="<?php echo $this->baseUrl('corporatefile/index/id/'.encode($file->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("corporatefile_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("corporatefile_button_edit"); ?></a>
+                <?php } ?>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Corporate File', ACTION_CREATE) && $file->getCreator()->canUploadFiles()) { ?>
+                <a href="<?php echo $this->baseUrl('corporatefile/index/folderid/'.$file->getFolderID()); ?>" class="positiveaction" title="<?php echo $this->translate("corporatefile_button_new"); ?>"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /><?php echo $this->translate("corporatefile_button_new"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Corporate File', ACTION_LIST)) { ?>
+                <a href="<?php echo $this->baseUrl('corporatefile/list/parentid/'.$file->getFolderID()); ?>" class="positiveaction" title="<?php echo $this->translate("corporatefile_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("corporatefile_button_list"); ?></a>
+            <?php } ?>            
+            </td>
+        </tr>
+    </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	//require_once APPLICATION_PATH.'/includes/footer.php';
+?>

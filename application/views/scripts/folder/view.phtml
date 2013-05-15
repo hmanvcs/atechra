@@ -1,0 +1,126 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$folder = new Folder();
+	$folder ->populate(decode($request->id));
+	// $folder ->getAbsoluteFolderPath();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("folder_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+<script>
+$(document).ready(function(){
+	// Confirm that the user wants to delete the folder
+	$("#deletedialog, #dialog").dialog({
+		resizable: false,
+		width:450,
+		modal: true,
+		autoOpen: false
+	});
+		
+	// Confirm that the user wants to delete the vacation
+	$(".delete").click(function(e){
+		e.preventDefault();
+		var theHREF = $(this).attr("href");
+	  
+		$("#deletedialog").dialog('option', 'buttons', {
+			 "Delete" : function() {
+					$(".ui-dialog-buttonpane button:contains(Delete), .ui-dialog-buttonpane button:contains(Cancel)").hide();
+					$("#contents").hide();
+					$("#wait_delete").show();
+					window.location.href = theHREF;
+			  },
+			 "Cancel" : function() {
+			 		$(this).dialog("close");
+			  }
+		});
+		
+		// open the dialog
+		$("#deletedialog").dialog("open").height('auto');
+	});	
+});
+</script>
+<style>
+table.formtable {
+	margin-bottom:10px;
+}
+</style>
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('folder_button_delete'); ?>?">
+    <span id="contents"><?php echo $this->translate('folder_delete_confirmation'); ?></span>
+    <div id="wait_delete" class="hidden"><br />Deleting ...<br /><br />
+        Please Wait ..... <br /><br />
+        <img src="<?php echo $this->baseUrl("images/loading.gif"); ?>" /> 
+    </div>
+</div>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+	<?php if ($sessionhaserror) { ?>
+        <tr>
+            <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+        </tr>
+    <?php } ?>
+    <tr>
+        <td class="label"><?php echo $this->translate("folder_name_label"); ?>:</td>
+        <td><?php echo $folder->getName(); ?></td>
+    </tr>    
+    <tr>
+        <td class="label"><?php echo $this->translate("folder_description_label"); ?>:</td>
+        <td><?php echo nl2br($folder->getDescription()); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("folder_dateuploaded_label"); ?>:</td>
+        <td><?php echo changeMySQLDateToPageFormat($folder->getDatecreated()); ?></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("folder_uploadedby_label"); ?>:</td>
+        <td><?php echo $folder->getCreator()->getName(); ?></td>
+    </tr>
+</table>
+<?php if ($acl->checkPermission('Application Settings', ACTION_VIEW)) { ?>
+<table class="formtable">
+    <thead>
+        <tr>
+        	<td colspan="2">Folder Permissions</td>
+        </tr>
+    </thead>
+    <tbody>
+    	<tr>
+        	<td class="label">Allowed Access:</td>
+            <td><?php echo $folder->grantList(); ?></td>
+        </tr>
+        <tr>
+        	<td class="label">Denied Access:</td>
+            <td><?php echo $folder->deniedList(); ?></td>
+        </tr>
+    </tbody>
+</table>
+<?php } ?>
+<table class="formtable">
+	<tfoot>
+        <tr>
+            <td colspan="2">
+            <?php if ($acl->checkPermission('Folder', ACTION_DELETE)) { ?>         
+                <a href="<?php echo $this->baseUrl('folder/delete/id/'.encode($folder->getID()).'/parentpath/'.encode($folder->getAbsoluteFolderPath()).'/'.SUCCESS_MESSAGE.'/folder_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("corporatefile/list/parentid/".$folder->getParentID()))); ?>" class="negativeaction delete" title="<?php echo $this->translate("folder_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("folder_button_delete"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Folder', ACTION_EDIT)) { ?>
+            	<a href="<?php echo $this->baseUrl('folder/index/id/'.encode($folder->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("folder_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php //echo $this->translate("folder_button_edit"); ?>Update</a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Folder', ACTION_CREATE)) { ?>
+            	<a href="<?php echo $this->baseUrl('folder/index/parentid/'.$folder->getParentID()); ?>" class="positiveaction" title="<?php echo $this->translate("folder_button_new"); ?>"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /><?php echo $this->translate("folder_button_new"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Folder', ACTION_LIST)) { ?>
+            	<a href="<?php echo $this->baseUrl('corporatefile/list/parentid/'.$folder->getParentID()); ?>" class="positiveaction" title="Return"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("global_button_back"); ?></a>
+            <?php } ?>
+            </td>
+        </tr>
+    </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	//require_once APPLICATION_PATH.'/includes/footer.php';
+?>

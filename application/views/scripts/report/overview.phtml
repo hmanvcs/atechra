@@ -1,0 +1,12 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("report_pagetitle_dashboard"); 
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title);
+?>
+<h1><?php echo $title; ?></h1>
+Reports
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

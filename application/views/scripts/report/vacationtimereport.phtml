@@ -1,0 +1,197 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("vacationtimereport_pagetitle"); 
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("v.projectid"));
+	$paginate->setFilterColumns(array("v.employeeid", "v.projectid", "v.status"));
+	$paginate->setDefaultSortBy("v.startdate");	
+	$paginate->setDefaultSortOrder("DESC");
+
+	$paginate->processPost($request->getParams());
+	
+	$current_results_filter = ""; 
+	
+	$month_filter = date("n"); 
+	if (!isEmptyString($request->month)) {
+		$month_filter = $request->month; 
+	}
+	
+	$year_filter = date("Y"); 
+	if (!isEmptyString($request->year)) {
+		$year_filter = $request->year; 
+	}
+	
+	
+	
+	if (!$acl->checkPermission('Vacation', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's PTO 
+		$current_results_filter = " AND v.employeeid = '".$userid."' ";
+	}
+	
+	$all_results_query = "SELECT v.id, v.employeeid, v.projectid, v.status, CONCAT(u.firstname,' ', u.lastname) AS `Employee`, p.title AS `Type of Absence`, DATE_FORMAT(v.startdate,'".$config->dateandtime->mysqlformat."') AS `Start Date`, DATE_FORMAT(v.enddate,'".$config->dateandtime->mysqlformat."') AS `End Date`, lv.lookupvaluedescription AS `Status` FROM vacation AS v INNER JOIN project AS p ON v.projectid = p.id INNER JOIN useraccount AS u ON v.employeeid = u.id INNER JOIN lookuptypevalue AS lv ON (v.`status` = lv.lookuptypevalue AND lv.lookuptypeid = 6) WHERE (YEAR(v.startdate) = '".$year_filter."' OR YEAR(v.enddate) = '".$year_filter."') AND (MONTH(v.startdate) = '".$month_filter."' OR MONTH(v.enddate) = '".$month_filter."') ".$paginate->getSearchAndFilterSQL()." ".$current_results_filter.$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 4;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+
+<h1><?php echo $title; ?></h1>
+<form action="<?php echo $this->baseUrl("report/vacationtimereport"); ?>" method="get" id="vacationform">
+  <b>Report Options:</b> <br />
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td><?php		
+	 $monthdropdown = new Zend_Form_Element_Select('month',
+								array(
+									'multiOptions' => getAllMonthsAsNumbers(),						
+									'view' => new Zend_View(),
+									'decorators' => array('ViewHelper'),
+									'class' => array('chzn-select', 'month')		
+								)
+						  );
+						  
+	 $monthdropdown->setValue($month_filter);
+	 echo $monthdropdown->render(); 
+?></td>
+            <td><?php		
+									 $yeardropdown = new Zend_Form_Element_Select('year',
+																array(
+																	'multiOptions' => getAllYearsForMonthlyTimeReport(),						
+																	'view' => new Zend_View(),
+																	'decorators' => array('ViewHelper'),
+																	'class' => array('chzn-select', 'year')							
+																)
+														  );
+														  
+									 $yeardropdown->setValue($year_filter);
+									 echo $yeardropdown->render(); 
+						  ?></td>
+            <td><?php 	
+									$employeelookup = new LookupType();
+									$employeelookup->setName("ALL_USERS"); 
+									$employeedropdown = new Zend_Form_Element_Select('v'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+												array(
+													'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('monthlytimesheetreport_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+													'view' => new Zend_View(),
+													'decorators' => array('ViewHelper'),
+													'class' => array('chzn-select')			
+												)
+											);
+									$employeedropdown->setValue($request->getParam('v'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+									echo $employeedropdown->render();	
+    	?></td>
+            <td nowrap="nowrap"><button value="submit" name="submit" type="submit" class="positiveaction" title="<?php echo $this->translate('report_button_generate'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('report_generate'); ?>"/><?php echo $this->translate('report_button_generate'); ?></button></td>
+          </tr>
+          <tr>
+            <td><?php			
+                        $typelookup = new LookupType(); 
+                        $typelookup->setName("NON_BILLABLE_PROJECTS");
+                        $typedropdown = new Zend_Form_Element_Select('v'.HTML_TABLE_COLUMN_SEPARATOR.'projectid',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('vacation_list_filter_project')), $typelookup->getOptionValuesFromQuery()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper'),
+										'class' => array('chzn-select')		
+                                    )
+                        );
+                        $typedropdown->setValue($request->getParam('v'.HTML_TABLE_COLUMN_SEPARATOR.'projectid')); 
+                        echo $typedropdown->render();	
+                    ?></td>
+            <td><?php			
+                        $statuslookup = new LookupType(); 
+                        $statuslookup->setName("TIMESHEET_STATUSREPORT_STATUS");
+                        $statusdropdown = new Zend_Form_Element_Select('v'.HTML_TABLE_COLUMN_SEPARATOR.'status',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('vacation_list_filter_status')), $statuslookup->getOptionValuesAndDescription()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper'),
+										'class' => array('chzn-select')		
+                                    )
+                        );
+                        $statusdropdown->setValue($request->getParam('v'.HTML_TABLE_COLUMN_SEPARATOR.'status')); 
+                        echo $statusdropdown->render();	
+                    ?></td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+</form>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+<?php } ?>
+<?php if(isNotAnEmptyString($session->getVar(ERROR_MESSAGE))){ ?>
+<label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+<?php } ?>
+<?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+<label class="informationmessage"><?php echo $this->translate('vacation_list_norecords'); ?></label>
+<?php } else { ?>
+<div id="counter"><?php echo sprintf($this->translate("vacation_list_counter"), $paginate->getItemCounterText()); ?></div>
+<div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+<div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+<?php if ($acl->checkPermission('Vacation Time Report', ACTION_EXPORT)) { ?>
+<div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+<?php } ?>
+<table class="list">
+  <thead>
+    <tr>
+      <td><?php echo $paginate->getSortLinkForColumn('u.firstname', $this->translate("vacation_employee_label")); ?></td>
+      <td><?php echo $paginate->getSortLinkForColumn('v.project', $this->translate("vacation_type_of_absence_label")); ?></td>
+      <td><?php echo $paginate->getSortLinkForColumn('v.startdate', $this->translate('vacation_startdate_label')); ?></td>
+      <td><?php echo $paginate->getSortLinkForColumn('v.enddate', $this->translate('vacation_enddate_label')); ?></td>
+      <td><?php echo $paginate->getSortLinkForColumn('v.status', $this->translate("vacation_status_label")); ?></td>
+    </tr>
+  </thead>
+  <tbody>
+    <?php $vacation = new Vacation(); 		  		
+			foreach($result as $line){
+				$vacation->setStatus($line['status']); 							
+		?>
+    <tr>
+      <td><?php echo $line['Employee']; ?></td>
+      <td><?php echo $line['Type of Absence']?></td>
+      <td><?php echo $line['Start Date']; ?></td>
+      <td><?php echo $line['End Date']; ?></td>
+      <td><?php echo $line['Status']; ?></td>
+    </tr>
+    <?php 						
+			} // end processing results 
+		?>
+  </tbody>
+</table>
+<?php			
+	} // end check that there are results    	
+?>
+<div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

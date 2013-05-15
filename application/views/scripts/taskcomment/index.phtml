@@ -1,0 +1,137 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$taskcomment = new TaskComment(); 
+	
+	if(!isEmptyString($request->taskid)){	
+		$taskcomment->setTaskID(decode($request->taskid));
+	} 
+	
+	if(!isEmptyString($request->id)){	
+		$taskcomment->populate(decode($request->id));	
+	}
+	
+	$title = $this->translate("taskcomment_pagetitle_new");
+	
+	$button_title = $this->translate("taskcomment_button_submit_label");
+	$button_save_title = $this->translate("taskcomment_button_save_label");
+	$posturl = $this->baseUrl('taskcomment/create');
+		
+	#in case of errors in session, populate the fields from session
+	if($sessionhaserror){ 
+		$taskcomment->processPost($session->getVar(FORM_VALUES));	
+	}
+	$this->headTitle($title);   
+?>
+<script>
+$(document).ready(function(){
+	// validation code for the form
+	$("#taskcommentform").validate({		
+		// define the validation rules one field at a time		
+		rules: {	
+			content: {
+				required: true			
+			} 
+		}, 
+		// the messages for each of the fields being validated
+		messages: {	
+			content: {
+				required: "<?php echo $this->translate("taskcomment_content_error"); ?>"				
+			} 			
+		}
+	});
+	
+	// send message
+	$("#upload").click(function(){		
+		ajaxFileUpload();
+	});
+	// document file upload
+	function ajaxFileUpload(){
+		// loading icon
+		$("#loading").ajaxStart(function(){
+			$(this).show();
+		}).ajaxComplete(function(){
+			$(this).hide();
+		});
+
+		$.ajaxFileUpload({
+				url:'<?php echo $this->baseUrl('taskcomment/upload'); ?>',
+				secureuri:false,
+				fileElementId:'attachment',
+				dataType: 'json',
+				data:{name:'logan', id:'id'},
+				success: function (data, status){
+					if(typeof(data.error) != 'undefined'){
+						if(data.error != ''){
+							alert(data.error);
+						} else {
+							//alert(data.msg);
+							$("#attachment, #upload").hide();
+							$("#uploaded").html(data.msg).show();
+							$("#uploadedfile").val(data.msg);
+						}
+					}
+				},
+				error: function (data, status, e){
+					alert(e);
+				}
+			}
+		)
+		
+		return false;
+	}
+});
+</script>
+<style type="text/css">
+textarea.expanding, textarea.notesfield {
+	min-height: 200px;
+	width: 600px;
+}
+</style>
+<h1><?php echo $title; ?></h1>
+<form id="taskcommentform" action="<?php echo $posturl; ?>" method="post" enctype="multipart/form-data">
+  <table class="formtable">
+    <?php if($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2">Please complete all fields that are marked with <?php echo $this->translate("required_field_marker"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("taskcomment_task_label") ?>:</td>
+      <td><?php echo $taskcomment->getTask()->getName(); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("taskcomment_duedate_label") ?>:</td>
+      <td><?php echo changeMySQLDateToPageFormat($taskcomment->getTask()->getDueDate()); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("taskcomment_content_label") ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%"><textarea id="content" name="content" class="expanding"><?php echo nl2br($taskcomment->getContent()); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("taskcomment_label_attachment"); ?>:</td>
+      <td><div id="newdoc">
+          <input type="file" name="name" id="name" class="" value="">
+          <br />
+          <i><?php echo sprintf($this->translate("taskcomment_document_attachmentsize_label"), formatBytes($config->document->maximumfilesize), NULL, NULL, FALSE) ?></i> </div></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><button type="submit" class="positiveaction" name="submit" title="<?php echo $button_save_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_save_title; ?></button>
+        <input name="createdby" id="createdby" type="hidden" value="<?php echo $userid; ?>" />
+        <input type="hidden" id="uploadedfile" name="uploadedfile"  value="" />
+        <input type="hidden" id="id" name="id" value="<?php echo encode($taskcomment->getID()); ?>" />
+        <input type="hidden" id="taskid" name="taskid" value="<?php echo $taskcomment->getTaskID(); ?>" />
+        <input name="entityname" id="entityname" type="hidden" value="TaskComment" />
+        <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl("taskcomment/index/taskid/".encode($taskcomment->getTaskID()))); ?>" />
+        <input type="hidden" id="<?php echo URL_SUCCESS; ?>" name="<?php echo URL_SUCCESS; ?>" value="<?php echo encode($this->baseUrl("taskcomment/list/tc".HTML_TABLE_COLUMN_SEPARATOR."taskid/".$taskcomment->getTaskID())); ?>" /></td>
+    </tr>
+  </table>
+</form>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

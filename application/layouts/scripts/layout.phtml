@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<?php
+   require_once APPLICATION_PATH.'/includes/commonfunctions.php';
+?>
+<html lang="en">
+<head>
+<?php echo $this->headTitle(); ?>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<link href="<?php echo $this->baseUrl('favicon.ico'); ?>" rel="shortcut icon" type="image/x-icon" /> 
+<?php echo $this->headMeta(); ?>
+<?php
+  $request = Zend_Controller_Front::getInstance()->getRequest();
+  $isloggedin = false; 
+  $userid = ""; 
+  $session = SessionWrapper::getInstance();
+  
+  if (!isEmptyString($session->getVar("userid"))) {
+  	$isloggedin = true; 
+  	$userid = $session->getVar("userid");  
+	$useraccount = new UserAccount();
+  	$useraccount->populate($userid);
+  	$acl = getACLInstance(); 
+  }
+  $jsfiles = glob("javascript/*.js");
+  $cssfiles = glob("stylesheets/*.css");
+  
+  foreach ($cssfiles as $css) {
+	// use baseURL() to output the full URL of the cached file and use it as normal with headLink()
+	$this->minifyHeadLink()->appendStylesheet($css);
+  } 
+  echo $this->minifyHeadLink(); 
+  
+  foreach ($jsfiles as $js) {
+	// use baseURL() to output the full URL of the cached file and use it as normal with headLink()
+	// also use setFile so that each file is added
+	$this->minifyHeadScript()->appendFile($js);
+  }  
+  echo $this->minifyHeadScript(); 
+  $config = Zend_Registry::get("config"); 
+  
+?>
+<script type="text/javascript">
+//the date picker options
+var datepickerOpts = {
+		showOn: 'both', 
+		buttonImage: '<?php echo $this->baseUrl('images/calendar.png'); ?>', 
+		buttonImageOnly: true,
+		changeMonth: true,
+		changeYear: true,
+		minDate: '-<?php echo $config->dateandtime->mindate; ?>Y',
+		maxDate: '+<?php echo $config->dateandtime->maxdate; ?>Y',
+		dateFormat: '<?php echo $config->dateandtime->javascriptshortformat; ?>',
+		hideIfNoPrevNext: true,
+		showButtonPanel: true, 
+		currentText: 'Now'		
+	}; 
+var dialogOpts = {
+		width: 400,
+		height: 300,
+		resizable: false,
+		modal: true,
+		autoOpen: false
+	};
+$(document).ready(function() {
+	// set the rows of a table to have alternating colors
+	$("table.list tbody tr:odd").addClass("odd");
+	
+	// make the datefields readonly
+	$(".datefield, .disabledfield").attr('readOnly', 'true');
+	
+	// yes/no images 
+	$("span.Y, span.1").html('<img src="<?php echo $this->baseUrl("images/tick.png"); ?>"/>'); 
+	$("span.N, span.0").html('<img src="<?php echo $this->baseUrl("images/cross.png"); ?>"/>');
+
+	// classes for input fields which are not recogonized by IE
+	 $("input:text, input:password").addClass('input');
+	 $("input:checkbox").addClass('checkbox');
+	 $("input:radio").addClass('radio'); 
+
+	// select all checkboxes with a class Y
+	$("input:checkbox.Y, input:checkbox.1, input:radio.Y, input:radio.1").attr('checked', true); 
+	
+	// turn select controls to chosen type selects
+	$(".chzn-select").chosen();
+
+	// check if user is using less than IE9 and turn off chosen select
+	if ($.browser.msie) {
+		// remove the hidden property
+		// $(".chzn-select").removeClass('chzn-select')
+	}
+	
+	// search field for list	
+	setValue("searchterm");
+	$("#searchterm, #searchbutton").bind("click", function(event){
+		clearValue("searchterm"); 
+	}).bind('blur', function(event){
+		setValue("searchterm"); 
+	})
+	
+	// auto submit for list filters with the specified class, and all selects in a container with class filter 
+	$(".autosubmitsearchform, .filtercontainer select, #itemcountperpage").not(".noautosubmitsearchform").each(function(){
+		$(this).change(function(){
+			// clear the values in the search field
+			clearValue("searchterm"); 
+			// submit the form containing the dropdown
+			$(this).parents("form:first").submit(); 
+		});
+	});
+
+	// function to validate the enddate being greater than the start date
+	$.validator.addMethod("enddateafterstartdate", function(value, element) {            
+		var startDate = $(".startdate").val();  
+		if($.trim(value) == ""){
+			return true;
+		}
+		if($.trim(startDate) == ""){
+			return false;
+		}
+		return Date.parse(startDate) <= Date.parse(value);        
+	}, "Please select an End Date after the Start Date");
+
+	// check that there are no spaces in the input, particularly useful for password fields
+	$.validator.addMethod("noSpace", function(value, element) { 
+		  return value.indexOf(" ") < 0 && value != ""; 
+		}, "No space allowed");
+
+	// validate that a field cannot be equal to another
+	$.validator.addMethod("notEqualTo", function(value, element, param) {
+		 return this.optional(element) || value != $(param).val();
+	}, "The two fields cannot be equal");
+	
+	// Copy buttons at the top to the bottom
+	$("td.bottombuttons").html($("td.topbuttons").html());	
+
+	// hide any li having an empty anchor
+	$("li a.dummy").html('');	
+
+	// If there are any errors in validating a form, make form height and content column equal
+	$(":submit").click(function(){
+		if(!($('form').valid())){
+			resizeContentForm(); 
+		} 
+	});	
+
+    // auto grow textareaa with class expanding
+	$(".expanding").elastic();
+	$(".expanding").trigger('update');
+	
+	// initialize the Tooltip
+	$('a.tooltip').cluetip();
+	
+	$('textarea.htmleditor').tinymce({
+		// Location of TinyMCE script
+		script_url : "<?php echo $this->baseUrl('javascript/tiny_mce/tiny_mce.js'); ?>",
+
+		// General options
+		theme : "advanced",
+		content_css : "<?php echo $this->baseUrl('stylesheets/9.atechra.css'); ?>",
+
+		// Theme options
+		theme_advanced_buttons1 : "cut,copy,paste,pastetext,pasteword,separator,bold,italic,underline,separator,justifyleft,justifycenter,justifyright, justifyfull,separator,bullist,numlist,undo,redo",
+		theme_advanced_buttons2 : "",
+		theme_advanced_buttons3 : "",
+		theme_advanced_toolbar_location : "top",
+		theme_advanced_toolbar_align : "left",
+		theme_advanced_resizing : true
+	});
+	
+	// hide corporatefiles if user has no priviledges
+	<?php if (!isEmptyString($session->getVar("userid"))) { ?>	
+		<?php if(!$useraccount->canViewFilesAndFolders()) { ?>	
+			$("ul#mainmenu li#corporatefiles").remove();
+		<?php } ?>
+	<?php } ?>	
+	
+}); 
+	
+//Use window.load and not document.ready for effective equal heights
+	$(window).load(function() {
+		//Make columns equal
+		equalHeight($("#statusreportform, #contentcolumn"));
+}); 
+</script>
+</head>
+<body>
+<div id="maincontainer">
+<?php require_once APPLICATION_PATH.'/views/scripts/index/header.phtml'; ?>
+  <?php require_once APPLICATION_PATH.'/views/scripts/index/mainmenu.phtml'; ?>
+  <div id="contentwrapper">
+    <div id="contentcolumn"> <?php echo $this->layout()->content; ?></div>    	
+</div>
+</div>
+<?php require_once APPLICATION_PATH.'/views/scripts/index/footer.phtml'; ?>
+<div class="hidden" id="printer_page_action_buttons"> <a title="Close Window" onClick="window.close()" > <img src="<?php echo $this->baseUrl('images/cross.png'); ?>" width="16" height="16" alt="Close Window"> Close Window </a> &nbsp;&nbsp; <a title="Print" onClick="window.print()" > <img src="<?php echo $this->baseUrl('images/printer.png'); ?>" width="16" height="16" alt="Print"> Print </a> </div>
+<div id="dialog" class="hidden"></div>
+<div id="dialog_contents" class="hidden">
+	<br><br><br>Now Loading .... <br><br><br>Please Wait .... <br><br><br><img src="<?php echo $this->baseUrl('images/loading.gif'); ?>" alt="Loading <br>Please Wait">
+</div>
+</body>
+</html>

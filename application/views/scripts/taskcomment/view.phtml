@@ -1,0 +1,17 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$research = new Research();
+	$research->populate(decode($request->id));	
+	
+	// create an array of the details to be return as json
+	$research_array = array(
+						'id' => $research->getID(),
+						'matterid' => $research->getMatterID(),	
+						'content' => str_replace("\n", "<br>", $research->getContent()),				
+						'researchassignmentid' => $research->getResearchAssignmentID(),				
+						'date' => date('m/d/Y', strtotime($research->getDateCreated())),
+						'time' => date('g:i A', strtotime($research->getDateCreated()))						
+					); 
+?>
+<?php echo json_encode($research_array); ?>

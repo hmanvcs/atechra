@@ -1,0 +1,81 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Set page title
+	$title = $request->ttl;
+	$this->headTitle($title); 
+	
+	$column_starting_variable = $request->columncheck;
+	$printquery = $session->getVar(CURRENT_RESULTS_QUERY);
+	
+	
+?>
+<style>
+#mainmenu, #header, #rightcolumn {
+	display:none;
+}
+#header #logo img {
+	display:none;
+}
+#contentcolumn {
+	margin-top:25px;
+	width:960px;
+}
+body, #contentwrapper,#contentcolumn, #rightcolumn {
+	background:none;
+	border:none;
+}
+#listresults_div {
+	width:960px;
+}
+table.list {
+	/*width:800px;*/
+}
+</style>
+<a title="Close Window" class="negativeaction" onclick="window.close()"><img src="<?php echo $this->baseUrl("images/cross.png"); ?>" /><?php echo $this->translate('global_button_close'); ?></a> &nbsp;&nbsp; 
+<a title="<?php echo $this->translate('global_button_print'); ?>" class="positiveaction" onclick="window.print()"><img src="<?php echo $this->baseUrl("images/printer.png"); ?>" /><?php echo $this->translate('global_button_print'); ?></a>
+<?php
+	$conn = Doctrine_Manager::connection(); 
+	 $counter = 0;
+	 $result = $conn->fetchAll($printquery); 
+	 if (!$result) {
+		echo "There was an error generating the list for display ".mysql_error(); 
+	 }
+	 if (count($result) == 0) {
+		echo "There are no records to display";
+	 }
+	 $columnlist = array_keys($result[0]);
+	 $columnCount = count($result[0]);
+    ?>
+<br /><br />
+<div id="listresults_div">    
+    <h2><?php echo $title; ?></h2>
+      <table class="list">      	
+        <thead>
+          <tr>
+            <?php 
+				// display the column headers
+				for($cols = $column_starting_variable; $cols < $columnCount; $cols ++) {
+			 ?>
+            <td nowrap="wrap"><?php echo $columnlist[$cols]; ?></td>
+            <?php } ?>
+          </tr>
+        </thead>
+        <tbody>
+			<?php 
+                // display each row
+                foreach ( $result as $line ) {
+                   echo "<tr>";
+                      for($column = $column_starting_variable; $column < $columnCount; $column ++) {
+                         // add the content for each cell
+                         print "<td class='nowrapping'>".$line[$columnlist[$column]]."</td>";
+                      }
+                   echo "</tr>"; 
+                } 
+             ?>
+        </tbody>
+      </table>
+</div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

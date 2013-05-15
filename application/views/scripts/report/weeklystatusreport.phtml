@@ -1,0 +1,81 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("weeklystatusreport_pagetitle"); 
+	$this->headTitle($title);
+	
+	if (isNotAnEmptyString($request->generatepdf)) {
+		$generatepdf = true; 
+		$publicaccess = true; 
+		$ignoresecuritycheck = true; 
+	}
+	
+	$weekendingdate_filter = ""; 
+	if (!isEmptyString($request->weekendingdate)) {
+		$weekendingdate_filter = changeDateFromPageToMySQLFormat($request->weekendingdate); 
+		$periodenddate = changeMySQLDateToPageFormat($request->weekendingdate);
+		$periodstartdate = date($config->dateandtime->shortformat, strtotime("-4 day ", strtotime($periodenddate)));
+	}
+	
+?>
+<script>
+	$(document).ready(function(){
+		$("#weeklystatusreportsearchform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				<?php echo 'sr'.HTML_TABLE_COLUMN_SEPARATOR.'weekendingdate'; ?>: "required",
+				<?php echo 'sr'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid'; ?>: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {		
+				<?php echo 'sr'.HTML_TABLE_COLUMN_SEPARATOR.'weekendingdate'; ?>: "<?php echo $this->translate("weeklystatusreport_weekendingdate_error"); ?>",		
+				<?php echo 'sr'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid'; ?>: "<?php echo $this->translate("weeklystatusreport_employee_error"); ?>"
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				error.appendTo("#reportparametererror");
+			}
+		});
+	});
+</script>
+
+<form action="<?php echo $this->baseUrl("report/weeklystatusreport"); ?>" method="get" id="weeklystatusreportsearchform">
+  <b>Report Options:</b> <br />
+  <?php		
+	 $weekendingdatedropdown = new Zend_Form_Element_Select('weekendingdate',
+								array(
+						'multiOptions' => getWeekendingDates(),						
+						'view' => new Zend_View(),
+									 'decorators' => array('ViewHelper'),
+									  'class' => array('chzn-select', 'weekendingdate')		
+								)
+						  );
+						  
+	 $weekendingdatedropdown->setValue($request->weekendingdate);
+	 echo $weekendingdatedropdown->render(); 
+?>
+  &nbsp; &nbsp;
+  <?php 	
+									$employeelookup = new LookupType();
+									$employeelookup->setName("ALL_USERS"); 
+									$employeedropdown = new Zend_Form_Element_Select('sr'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+												array(
+													'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('weeklystatusreport_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+													'view' => new Zend_View(),
+													'decorators' => array('ViewHelper'),
+													'class' => array('chzn-select')			
+												)
+											);
+									$employeedropdown->setValue($request->getParam('sr'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+									echo $employeedropdown->render();	
+    	?>
+  &nbsp; &nbsp;
+  <button value="submit" name="submit" type="submit" class="positiveaction" title="<?php echo $this->translate('report_button_generate'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('report_generate'); ?>"/><?php echo $this->translate('report_button_generate'); ?></button>
+  <br />
+  <div id="reportparametererror"></div>
+  <h1><?php echo $title; ?></h1>
+</form>
+<?php // include the partial with the report details
+	echo $this->partial('report/weeklystatusreportdetail.phtml', $request->getParams()); ?>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

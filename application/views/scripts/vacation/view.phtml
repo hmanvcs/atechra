@@ -1,0 +1,150 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$vacation = new Vacation();
+	$vacation->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("vacation_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+<script>
+			$(document).ready(function(){
+				// approve dialog boxes
+				$("#deletedialog, #approvedialog, #dialog").dialog({
+							resizable: false,
+							height:140,
+							width:450,
+							modal: true,
+							autoOpen: false
+				});
+				$(".approve" ).click(function(e) {
+					  e.preventDefault();
+					  var theHREF = $(this).attr("href");
+					  
+					  $("#approvedialog").dialog('option', 'buttons', {
+							 "Approve" : function() {
+								  		window.location.href = theHREF;
+								  },
+							 "Cancel" : function() {
+								  		$(this).dialog("close");
+								  }
+						});
+						
+						// open the dialog
+						$("#approvedialog").dialog("open");
+				}); // close the approve dialog functionality 
+				$(".reject" ).click(function(e) {
+					  e.preventDefault();
+					  var url = $(this).attr('href');	
+					  $("#dialog").dialog('option', 'title', $(this).attr('title')); 
+					  // load the please wait contents 
+					  $("#dialog").html($("#dialog_contents").html()); 
+						//display the dialog content
+						$("#dialog").load(url);
+						// open the dialog
+						$("#dialog").dialog("open").height('auto');
+					}); // close the reject dialog functionlaity 
+					
+				// Confirm that the user wants to delete the vacation
+				$(".delete").click(function(e){
+					e.preventDefault();
+					var theHREF = $(this).attr("href");
+				  
+					$("#deletedialog").dialog('option', 'buttons', {
+						 "Delete" : function() {
+									window.location.href = theHREF;
+							  },
+						 "Cancel" : function() {
+									$(this).dialog("close");
+							  }
+					});
+					
+					// open the dialog
+					$("#deletedialog").dialog("open");
+				});	
+			});
+	
+</script>
+
+<div class="hidden" id="approvedialog" title="<?php echo $this->translate('vacation_button_approve'); ?>"><?php echo $this->translate('vacation_approve_confirmation'); ?></div>
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('vacation_button_delete'); ?>"><?php echo $this->translate('vacation_delete_confirmation'); ?></div>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <tr>
+    <td colspan="2"><label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <?php if ((!isEmptyString($request->id)) and ($userid != $vacation->getEmployeeID())) { ?>
+  <tr>
+    <td nowrap="nowrap" class="label"><?php echo $this->translate("vacation_employee_label"); ?>:</td>
+    <td width="99%"><?php echo $vacation->getEmployee()->getName(); ?></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("vacation_type_of_absence_label"); ?>:</td>
+    <td><?php echo $vacation->getProject()->getTitle(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("vacation_startdate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($vacation->getStartDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("vacation_enddate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($vacation->getEndDate()); ?></td>
+  </tr>
+  <tr>
+    <td nowrap="nowrap" class="label"><?php echo $this->translate("vacation_hoursrequested_label"); ?>:</td>
+    <td><?php echo $vacation->getFormattedRequestHours(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("vacation_status_label"); ?>:</td>
+    <td><?php echo $vacation->getStatusDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("vacation_notes_label"); ?>:</td>
+    <td><?php echo $vacation->getNotes(); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td colspan="2"><?php if (!$vacation->isApproved()) {
+		   if ($acl->checkPermission('Vacation', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('vacation/delete/entityname/Vacation/id/'.encode($vacation->getID()).'/'.SUCCESS_MESSAGE.'/Vacation/Sick time has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("vacation/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("vacation_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("vacation_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Vacation', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('vacation/index/id/'.encode($vacation->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("vacation_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("vacation_button_edit"); ?></a>
+        <?php } ?>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Vacation', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('vacation/list'); ?>" class="positiveaction" title="<?php echo $this->translate("vacation_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("vacation_button_list"); ?></a>
+        <?php } ?>
+        <?php 
+		  		if ($acl->checkPermission('Vacation', ACTION_APPROVE)) { 
+					// show the reject button if the vacation can be rejected
+					if ($vacation->allowReject() and $userid != $vacation->getEmployeeID()) {
+			?>
+        <a class="reject negativeaction" href="<?php echo $this->baseUrl('vacation/confirmreject/vacationid/'.encode($vacation->getID())."/".PAGE_CONTENTS_ONLY."/true/".URL_SUCCESS.'/'.encode($this->baseUrl('vacation/view/vacationid/'.encode($vacation->getID())))); ?>" title="<?php echo $this->translate("vacation_button_reject"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("vacation_button_reject"); ?></a>
+        <?php } // end check for whether vacation can be rejected
+					if ($vacation->allowApprove() and $userid != $vacation->getEmployeeID()) {
+				?>
+        <a href="<?php echo $this->baseUrl('vacation/approve/vacationid/'.encode($vacation->getID()).'/'.URL_SUCCESS.'/'.encode($this->baseUrl('vacation/view/vacationid/'.encode($vacation->getID())))); ?>" class="approve positiveaction" title="<?php echo $this->translate("vacation_button_approve"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("vacation_button_approve"); ?></a>
+        <?php } // end check on whether the vacation can be approved
+			 	} // end check for whether the user can approve vacations
+		  	?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

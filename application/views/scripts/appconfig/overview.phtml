@@ -1,0 +1,43 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("appconfig_pagetitle_dashboard"); 
+	$this->headTitle($title); 
+?>
+<table class="list">  
+	<caption><?php echo $title; ?></caption>  
+    <thead>
+        <tr>
+            <td width="20">&nbsp;</td>
+            <td width="550">Setting</td>
+            <td>View</td>
+        </tr>
+    </thead>
+    <tbody>
+	 		<?php if ($acl->checkPermission('User Account', ACTION_LIST)) { ?>
+        <tr>
+            <td><a href="<?php echo $this->baseUrl("profile/list")?>" title="<?php echo $this->translate('useraccount_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/top_menu_personalinfo.png'); ?>" /></a></td>
+            <td><a href="<?php echo $this->baseUrl("profile/list")?>" title="<?php echo $this->translate('useraccount_button_list'); ?>"><?php echo $this->translate('useraccount_pagetitle_list'); ?></a></td>
+            <td><a href="<?php echo $this->baseUrl("profile/list")?>" title="<?php echo $this->translate('useraccount_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/update.png'); ?>" /></a></td>
+        </tr>
+		  <?php } ?>
+		  <?php if ($acl->checkPermission('Role', ACTION_LIST)) { ?>
+        <tr>
+            <td><a href="<?php echo $this->baseUrl("role/list")?>" title="<?php echo $this->translate('role_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/security.png'); ?>" /></a></td>
+            <td><a href="<?php echo $this->baseUrl("role/list")?>" title="<?php echo $this->translate('role_button_list'); ?>"><?php echo $this->translate('role_pagetitle_list'); ?></a></td>
+            <td><a href="<?php echo $this->baseUrl("role/list")?>" title="<?php echo $this->translate('role_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/update.png'); ?>" /></a></td>
+        </tr>
+		  <?php } ?>
+		  <?php if ($acl->checkPermission('Application Settings', ACTION_LIST)) { ?>
+        <tr>
+            <td><a href="<?php echo $this->baseUrl("appconfig/list")?>" title="<?php echo $this->translate('appconfig_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/config.png'); ?>" /></a></td>
+            <td><a href="<?php echo $this->baseUrl("appconfig/list")?>" title="<?php echo $this->translate('appconfig_button_list'); ?>"><?php echo $this->translate('appconfig_pagetitle_list'); ?></a></td>
+            <td><a href="<?php echo $this->baseUrl("appconfig/list")?>" title="<?php echo $this->translate('appconfig_button_list'); ?>"><img src="<?php echo $this->baseUrl('images/update.png'); ?>" /></a></td>
+        </tr>    
+		  <?php } ?>    
+    </tbody>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

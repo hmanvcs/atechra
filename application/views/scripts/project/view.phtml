@@ -1,0 +1,68 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$details = new Project();
+	$details->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("project_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_jobnumber_label"); ?>:</td>
+    <td><?php echo $details->getJobNumber(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_title_label"); ?>:</td>
+    <td><?php echo $details->getTitle(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_client_label"); ?>:</td>
+    <td><?php echo $details->getClient()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_type_label"); ?>:</td>
+    <td><?php echo $details->getTypeDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_startdate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($details->getStartDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_enddate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($details->getEndDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("project_description_label"); ?>:</td>
+    <td><?php echo $details->getDescription(); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td>&nbsp;</td>
+      <td><?php if ($acl->checkPermission('Project', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('project/delete/entityname/Project/id/'.encode($details->getID()).'/'.SUCCESS_MESSAGE.'/project has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("project/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("project_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("project_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Project', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('project/index/id/'.encode($details->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("project_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("project_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Project', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('project/list'); ?>" class="positiveaction" title="<?php echo $this->translate("project_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("project_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

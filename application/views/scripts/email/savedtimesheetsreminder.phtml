@@ -1,0 +1,44 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->firstname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Your <?php echo $this->type; ?> for Week Ending <?php echo $this->weekendingdate; ?> is currently <?php echo $this->timesheetstatus; ?>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Please submit your <?php echo $this->type; ?>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td> To do so, follow the steps below:</td>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td> 1. Login into <a href="<?php echo $this->serverUrl($this->baseUrl()); ?>" target="_blank"><?php echo $this->serverUrl($this->baseUrl()); ?></a><br />
+      <br />
+      2. Click the Edit link next to the <?php echo $this->type; ?>.<br />
+      <br />
+      3. Click the "Submit for Approval" button.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Thank you</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

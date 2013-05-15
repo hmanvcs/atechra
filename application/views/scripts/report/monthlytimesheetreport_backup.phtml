@@ -1,0 +1,95 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("monthlytimesheetreport_pagetitle"); 
+	$this->headTitle($title);
+	
+	$month_filter = date("n"); 
+	if (!isEmptyString($request->month)) {
+		$month_filter = $request->month; 
+	}
+	
+	$year_filter = date("Y"); 
+	if (!isEmptyString($request->year)) {
+		$year_filter = $request->year; 
+	}
+	
+?>
+<style>
+table.formtable td {
+	padding-right: 30px;
+}
+</style>
+<script>
+	$(document).ready(function(){
+		$("#monthlytimesheetreportsearchform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				<?php echo 'td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid'; ?>: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				<?php echo 'td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid'; ?>: "<?php echo $this->translate("monthlytimesheetreport_employee_error"); ?>"
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				error.appendTo("#reportparametererror");
+			}
+		});
+	});
+</script>
+
+<form action="<?php echo $this->baseUrl("report/monthlytimesheetreport"); ?>" method="get" id="monthlytimesheetreportsearchform">
+  <b>Report Options:</b> <br />
+  <?php		
+	 $monthdropdown = new Zend_Form_Element_Select('month',
+								array(
+						'multiOptions' => getAllMonthsAsNumbers(),						
+						'view' => new Zend_View(),
+									 'decorators' => array('ViewHelper'),
+									  'class' => array('chzn-select', 'month')		
+								)
+						  );
+						  
+	 $monthdropdown->setValue($month_filter);
+	 echo $monthdropdown->render(); 
+?>
+  &nbsp; &nbsp;
+  <?php		
+									 $yeardropdown = new Zend_Form_Element_Select('year',
+																array(
+														'multiOptions' => getAllYearsForMonthlyTimeReport(),						
+														'view' => new Zend_View(),
+																	 'decorators' => array('ViewHelper'),
+																	 'class' => array('chzn-select', 'year')							
+																)
+														  );
+														  
+									 $yeardropdown->setValue($year_filter);
+									 echo $yeardropdown->render(); 
+						  ?>
+  &nbsp; &nbsp;
+  <?php 	
+									$employeelookup = new LookupType();
+									$employeelookup->setName("ALL_USERS"); 
+									$employeedropdown = new Zend_Form_Element_Select('td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+												array(
+													'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('monthlytimesheetreport_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+													'view' => new Zend_View(),
+													'decorators' => array('ViewHelper'),
+													'class' => array('chzn-select')			
+												)
+											);
+									$employeedropdown->setValue($request->getParam('td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+									echo $employeedropdown->render();	
+    	?>
+  &nbsp; &nbsp;
+  <button value="submit" name="submit" type="submit" class="positiveaction" title="<?php echo $this->translate('report_button_generate'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('report_generate'); ?>"/><?php echo $this->translate('report_button_generate'); ?></button>
+  <br />
+  <div id="reportparametererror"></div>
+  <h1><?php echo $title; ?></h1>
+</form>
+<?php // include the partial with the report details
+	echo $this->partial('report/monthlytimesheetreportdetail.phtml', $request->getParams()); ?>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

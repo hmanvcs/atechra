@@ -1,0 +1,219 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate('timesheet_pagetitle_list');
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("u.firstname", "u.lastname"));
+	$paginate->setFilterColumns(array("t.status", "td.employeeid"));
+	$paginate->setDefaultSortBy("t.weekendingdate");	
+	$paginate->setDefaultSortOrder("DESC");
+
+	$paginate->processPost($request->getParams());
+	
+	$current_user_filter = ""; 
+	
+	if (!$acl->checkPermission('Timesheet', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's timesheet
+		$current_user_filter = " AND t.employeeid = '".$userid."' ";
+	}
+	
+	$all_results_query = "SELECT t.status, t.id, td.employeeid, td.projectid, td.clientid, DATE_FORMAT(t.weekendingdate, '".$config->dateandtime->mysqlmediumformat."') as 'Week Ending', CONCAT(u.firstname, ' ', u.lastname) AS `Employee`, CONCAT(DATE_FORMAT(SUBDATE( t.weekendingdate, INTERVAL 4 DAY),'".$config->dateandtime->mysqlmediumformat."'), ' - ', DATE_FORMAT(t.weekendingdate,'".$config->dateandtime->mysqlmediumformat."')) AS `Period`, SUM(td.hours) AS `Total Hours`, lv.lookupvaluedescription AS `Status` FROM timesheet AS t INNER JOIN useraccount AS u ON t.employeeid = u.id INNER JOIN timesheetdetail AS td ON t.id = td.timesheetid INNER JOIN lookuptypevalue AS lv ON (t.`status` = lv.lookuptypevalue AND lv.lookuptypeid = 6)  ".$current_user_filter.$paginate->getSearchAndFilterSQL()." GROUP BY t.employeeid, t.weekendingdate ".$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 6;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "8";
+	
+?>
+<script>
+			$(document).ready(function(){
+				// approve dialog boxes
+				$("#approvedialog, #dialog").dialog({
+							resizable: false,
+							height:180,
+							width:450,
+							modal: true,
+							autoOpen: false
+				}); 
+				$(".approve" ).click(function(e) {
+					  e.preventDefault();
+					  var theHREF = $(this).attr("href");
+					  
+					  $("#approvedialog").dialog('option', 'buttons', {
+							 "Cancel" : function() {
+								  		$(this).dialog("close");
+								  },
+							 "Approve" : function() {
+								  		window.location.href = theHREF;
+								  }
+						});
+						
+						// open the dialog
+						$("#approvedialog").dialog("open");
+				}); // close the approve dialog functionality 
+				$(".reject" ).click(function(e) {
+					  e.preventDefault();
+					  var url = $(this).attr('href');	
+					  $("#dialog").dialog('option', 'title', $(this).attr('title')); 
+					  // load the please wait contents 
+					  $("#dialog").html($("#dialog_contents").html()); 
+						//display the dialog content
+						$("#dialog").load(url);
+						// open the dialog
+						$("#dialog").dialog("open").height('auto');
+					}); // close the reject dialog functionlaity 
+			});
+				
+</script>
+
+<div class="hidden" id="approvedialog" title="<?php echo $this->translate('timesheet_button_approve'); ?>"><?php echo $this->translate('timesheet_approve_confirmation'); ?></div>
+<form action="<?php echo $this->baseUrl("timesheet/listsearch"); ?>" method="get" id="timesheetform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <?php if ($acl->checkPermission('Timesheet', ACTION_ACCOUNT_LIST)) { ?>
+            <td><?php			
+                        $employeelookup = new LookupType(); 
+                        $employeelookup->setName("ALL_USERS");
+                        $employeedropdown = new Zend_Form_Element_Select('td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('timesheet_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper')
+                                    )
+                        );
+                        $employeedropdown->setValue($request->getParam('td'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+                        echo $employeedropdown->render();	
+                    ?></td>
+            <?php } ?>
+            <td><?php			
+                        $statuslookup = new LookupType(); 
+                        $statuslookup->setName("TIMESHEET_STATUSREPORT_STATUS");
+                        $statusdropdown = new Zend_Form_Element_Select('t'.HTML_TABLE_COLUMN_SEPARATOR.'status',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('timesheet_list_filter_status')), $statuslookup->getOptionValuesAndDescription()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper')
+                                    )
+                        );
+                        $statusdropdown->setValue($request->getParam('t'.HTML_TABLE_COLUMN_SEPARATOR.'status')); 
+                        echo $statusdropdown->render();	
+                    ?></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(ERROR_MESSAGE))){ ?>
+  <label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="informationmessage"><?php echo $this->translate('timesheet_list_norecords'); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("timesheet_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Client', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table class="list">
+    <caption>
+    <?php echo $title; ?>
+    </caption>
+    <thead>
+      <tr>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_EDIT)) { ?>
+        <td><?php echo $this->translate('global_list_action_edit'); ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_APPROVE)) { ?>
+        <td><?php echo $this->translate('global_list_action_approve'); ?></td>
+        <td><?php echo $this->translate('global_list_action_reject'); ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_ACCOUNT_LIST)) { ?>
+        <td><?php echo $paginate->getSortLinkForColumn('u.firstname', $this->translate("timesheet_employee_label")); ?></td>
+        <?php } ?>
+        <td><?php echo $paginate->getSortLinkForColumn("t.weekendingdate", $this->translate('timesheet_period_label')); ?></td>
+        <td align="center"><?php echo $this->translate("timesheet_totalhours_label"); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('sr.status', $this->translate("timesheet_status_label")); ?></td>
+      </tr>
+    </thead>
+    <tbody>
+      <?php 		
+      		$timesheet = new Timesheet(); 		  		
+			foreach($result as $line){	
+				$timesheet->setStatus($line['status']); 						
+		?>
+      <tr>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_EDIT)) { ?>
+        <td align="center"><?php if ($timesheet->allowUpdate()) { ?>
+          <a href="<?php echo $this->baseUrl("timesheet/index/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("timesheet_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="<?php echo $this->translate("timesheet_button_edit"); ?>" /></a>
+          <?php } ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_APPROVE)) { ?>
+        <td><?php if ($timesheet->allowApprove()) { ?>
+          <?php if ($userid != $line['employeeid']) { ?>
+          <a title="<?php echo $this->translate('timesheet_button_approve'); ?>" class="approve" href="<?php echo $this->baseUrl('timesheet/approve/timesheetid/'.encode($line['id']).'/'.URL_FAILURE.'/'.encode($this->baseUrl('timesheet/list/l'.HTML_TABLE_COLUMN_SEPARATOR.'status/1/'))); ?>"><?php echo $this->translate('global_list_action_approve'); ?></a>
+          <?php } ?>
+          <?php } ?></td>
+        <td><?php if ($timesheet->allowReject()) { ?>
+          <?php if ($userid != $line['employeeid']) { ?>
+          <a title="<?php echo $this->translate('timesheet_button_reject'); ?>" href="<?php echo $this->baseUrl('timesheet/confirmreject/timesheetid/'.encode($line['id'])."/".PAGE_CONTENTS_ONLY."/true"); ?>" class="reject"><?php echo $this->translate('global_list_action_reject'); ?></a>
+          <?php } ?>
+          <?php } ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_ACCOUNT_LIST)) { ?>
+        <td><?php echo $line['Employee']; ?></td>
+        <?php } ?>
+        <td><a href="<?php echo $this->baseUrl("timesheet/view/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("timesheet_button_view"); ?>"><?php echo $line['Period']; ?></a></td>
+        <td align="center"><?php echo $line['Total Hours']?></td>
+        <td><?php echo $line['Status']?></td>
+      </tr>
+      <?php 						
+			} // end processing results 
+		?>
+    </tbody>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

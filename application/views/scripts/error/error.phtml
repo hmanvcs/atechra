@@ -1,0 +1,12 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = "Application Error";
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+?>
+<h1><?php echo $title; ?></h1>
+<?php 
+	echo $session->getVar(APPLICATION_ERROR_PAGE_MESSAGE); 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

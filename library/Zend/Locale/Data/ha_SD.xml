@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ldml>
+	<identity>
+		<version number="$Revision: 1.1 $"/>
+		<generation date="$Date: 2011/10/17 18:17:01 $"/>
+		<language type="ha"/>
+		<territory type="SD"/>
+	</identity>
+	<alias source="ha_Arab_SD" path="//ldml"/>
+</ldml>

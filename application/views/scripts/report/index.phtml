@@ -1,0 +1,21 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("report_pagetitle_dashboard"); 
+	$this->headTitle($title);
+?>
+
+<h1><?php echo $title; ?></h1>
+<ul>
+  <?php if ($acl->checkPermission('Monthly Timesheet Report', ACTION_VIEW)) {?>
+  <li><a href="<?php echo $this->baseUrl('report/monthlytimesheetreport'); ?>">Monthly Timesheet Report</a></li>
+  <?php } ?>
+  <?php if ($acl->checkPermission('Weekly Status Report', ACTION_VIEW)) {?>
+  <li><a href="<?php echo $this->baseUrl('report/weeklystatusreport'); ?>">Weekly Status Report</a></li>
+  <?php } ?>
+  <?php if ($acl->checkPermission('Vacation Time Report', ACTION_VIEW)) {?>
+  <li><a href="<?php echo $this->baseUrl('report/vacationtimereport'); ?>">Vacation/Sick Time Report</a></li>
+  <?php } ?>
+</ul>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

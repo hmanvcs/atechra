@@ -1,0 +1,29 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->firstname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>This email is to confirm that you have submitted your Vacation/Sick timeoff request for <?php echo $this->requestedhours; ?> off from <?php echo $this->startdate; ?> to <?php echo $this->enddate; ?>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>The request is now scheduled for approval and you will be notified when it is approved.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Click here to view the details: <?php echo $this->serverUrl($this->url($this->vacationrequesturl)); ?></td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

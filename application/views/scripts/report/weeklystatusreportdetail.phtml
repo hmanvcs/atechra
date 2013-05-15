@@ -1,0 +1,200 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = $this->translate("weeklystatusreport_pagetitle"); 
+	$this->headTitle($title);
+	
+	// the config object instance
+	$config = Zend_Registry::get('config'); 
+		
+	$session = SessionWrapper::getInstance(); 
+	
+	$weekendingdate_filter = ""; 
+	if (!isEmptyString($this->weekendingdate)) {
+		$weekendingdate_filter = changeDateFromPageToMySQLFormat($this->weekendingdate); 
+		$periodenddate = changeMySQLDateToPageFormat($this->weekendingdate);
+		$periodstartdate = date($config->dateandtime->shortformat, strtotime("-4 day ", strtotime($periodenddate)));
+	}
+	
+	// generate the temp file name to store the HTML contents
+	$timestamp = time().rand(100, 5000);
+	$temp_file_name = md5($timestamp).".html";
+	//debugMessage($temp_file_name);
+  
+	$url_to_generate_pdf = $this->baseUrl('dompdf/dompdf.php?base_path=temp/&input_file='.rawurlencode($temp_file_name));
+	//debugMessage("URL: ".$url_to_generate_pdf);
+  
+	$weeklystatusreport_html = "";
+	
+	$statusreports_query = "SELECT sr.employeeid, sr.projectid, sr.clientid, sr.weekendingdate, sr.`status`, p.title AS Project, sr.activities AS `Activities this period`, sr.accomplishments AS Accomplishments, sr.meetingsandpresentations AS `Meetings and Presentations`, sr.issues AS `Issues or Problems`, sr.itemsforcotr AS `Items that need the attention of the COTR` FROM statusreport AS sr INNER JOIN project AS p ON sr.projectid = p.id WHERE sr.weekendingdate = '".$weekendingdate_filter."' AND sr.employeeid = '".$this->sr__employeeid."'";
+	//debugMessage($statusreports_query);
+?>
+<style type="text/css">
+table.formtable {
+	border-left:solid 1px #FFFFFF; color:
+	border-bottom:solid 1px #FFFFFF;
+	border-right:solid 1px #FFFFFF;
+	border-top:solid 1px #FFFFFF;
+}
+table.formtable td {
+	border-left:solid 1px #FFFFFF;
+	border-bottom:solid 1px #FFFFFF;
+	border-right:solid 1px #FFFFFF;
+	border-top:solid 1px #FFFFFF;
+}
+.heading {
+	font-size:16px;		
+}
+</style>
+<?php
+if (isEmptyString($this->submit)) {
+	?>
+
+<label class="informationmessage"><?php echo $this->translate("monthlytimesheetreport_select_employee"); ?></label>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+	}  else {
+		$conn = Doctrine_Manager::connection(); 
+	
+		$useraccount = new UserAccount();
+		$useraccount->populate($this->sr__employeeid);
+		
+		$unapproved_check = "SELECT sr.id, DATE_FORMAT(sr.weekendingdate, '".$config->dateandtime->mysqlmediumformat."') AS 'Week Ending', lv.lookupvaluedescription AS `Status` FROM statusreport sr INNER JOIN lookuptypevalue AS lv ON (sr.`status` = lv.lookuptypevalue AND lv.lookuptypeid = 6) WHERE status IN (0, 1, 3) AND sr.weekendingdate = '".$weekendingdate_filter."' AND sr.employeeid = '".$this->sr__employeeid."' ORDER BY sr.weekendingdate ";
+		//debugMessage($unapproved_check);
+		$unapproved_checkresult = $conn->fetchAll($unapproved_check); 
+		if (count($unapproved_checkresult) != 0) {
+			// thstatus report is not approved so show a message to the user
+			?>
+<label class="informationmessage"><?php echo sprintf($this->translate('weeklystatusreport_unapproved_error'), $useraccount->getName(), $this->weekendingdate); ?></label>
+<table class="list">
+  <thead>
+    <tr>
+      <td><?php echo $this->translate('statusreport_weekendingdate_label'); ?></td>
+      <td><?php echo $this->translate('statusreport_status_label'); ?></td>
+    </tr>
+  </thead>
+  <tbody>
+    <?php 
+		foreach ($unapproved_checkresult as $line) {
+	?>
+    <tr>
+      <td><a href="<?php echo $this->baseUrl('statusreport/view/id/'.encode($line['id'])); ?>" title="<?php echo $this->translate(''); ?>"><?php echo $line['Week Ending']; ?></a></td>
+      <td><?php echo $line['Status']; ?></td>
+    </tr>
+    <?php 
+		} // end foreach loop for unapproved status reports
+	?>
+  </tbody>
+</table>
+<?php
+		} // end if for unapproved status reports
+		else {
+			// all the status reports for the employee for the weekending date selected so show the report
+			$statusreports_result = $conn->fetchAll($statusreports_query);
+			
+			// check that there are status reports to show
+			$has_no_data = (count($statusreports_result) == 0) ? true : false;	
+			
+			if ($has_no_data) {
+			?>
+<label class="informationmessage"><?php echo $this->translate("weeklystatusreport_no_records"); ?></label>
+<?php 
+			} else { ?>
+<a class="positiveaction" href="javascript:openPopUpWindow('<?php echo $url_to_generate_pdf; ?>');"><img src="<?php echo $this->baseUrl('images/pdf.gif'); ?>" /><?php echo $this->translate("weeklystatusreport_button_download_weeklystatusreport"); ?></a>
+<table class="formtable" border="0">
+  <tr>
+    <td colspan="2" align="center" class="heading"><i><b><?php echo $useraccount->getCompanyName(); ?></b></i></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" class="heading"><i><b><?php echo $useraccount->getName(); ?></b></i></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><i><b>GLM Weekly Report</b></i></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><i><b>For the Week of <?php echo $periodstartdate." - ".$periodenddate; ?></b></i></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">&nbsp;</td>
+  </tr>
+  <?php 
+		foreach ($statusreports_result as $statusreport) {
+  ?>
+  <tr>
+    <td valign="top" class="heading"><i><b><?php echo $this->translate("statusreport_project_label"); ?>:</b></i></td>
+    <td class="heading"><i><b><?php echo $statusreport['Project']; ?></b></i></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td><b><?php echo $this->translate("statusreport_activities_label"); ?></b></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td style="font-size:12px;"><?php echo $statusreport['Activities this period']; ?></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td><b><?php echo $this->translate("statusreport_accomplishments_label"); ?></b></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td style="font-size:12px;"><?php echo $statusreport['Accomplishments']; ?></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td><b><?php echo $this->translate("statusreport_meetingsandpresentations_label"); ?></b></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td style="font-size:12px;"><?php echo $statusreport['Meetings and Presentations']; ?></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td><b><?php echo $this->translate("statusreport_issues_label"); ?></b></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td style="color:#F00F00; font-size:12px;"><?php echo $statusreport['Issues or Problems']; ?></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td><b><?php echo $this->translate("statusreport_itemsforcotr_label"); ?></b></td>
+  </tr>
+  <tr>
+    <td valign="top">&nbsp;</td>
+    <td style="color:#F00F00;"><?php echo $statusreport['Items that need the attention of the COTR']; ?></td>
+  </tr>
+  <?php }	?>
+</table>
+<?php 		
+				// for PROD, there we use public_html
+				$publicfolder = "/public/";
+				if (APPLICATION_ENV == "production") {
+					$publicfolder = "/public_html/";
+				}
+				$weeklystatusreport_html = ob_get_contents();
+				//$weeklystatusreport_html .= "<br /><br /><br /><span style=\"font-size:8px;\">Report generated from www.staff-atechra.com.com on ".date($config->dateandtime->reportgenerationtimestamp).". For more information contact support@staff-atechra.com</span>";
+				$printbutton_html = '<a class="positiveaction" href="javascript:openPopUpWindow(\''.$url_to_generate_pdf.'\');"><img src="'.$this->baseUrl("images/pdf.gif").'" />'.$this->translate("weeklystatusreport_button_download_weeklystatusreport").'</a>';
+				// remove the print button from the final HTML used to generate the PDF document
+				$weeklystatusreport_html = str_replace($printbutton_html, "", $weeklystatusreport_html);
+				
+				// Add the CSS to style the report for PDF generation 
+				$style_sheet = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-15"><style type="text/css">body, select, textarea, button, input, td {
+	font-family: Arial, Helvetica, Tahoma, sans-serif;	
+	font-size:14px;
+	color:#555555;
+	line-height: 1.2em;
+}</style></head>'; 
+		
+				$session->setVar('weeklystatusreport', $style_sheet."<body>".$weeklystatusreport_html."</body></html>"); 
+		
+				// write the HTML file to the file system
+				file_put_contents(str_replace("application", "", APPLICATION_PATH).$publicfolder."dompdf/temp/".$temp_file_name, $session->getVar('weeklystatusreport'));
+			
+			}
+			
+		}
+	} // end check for whether the there are unapproved status reports
+	?>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,23 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->clientname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Find attached the <?php echo strtolower($this->approvalstatus); ?> <?php echo $this->type; ?> for Week Ending <?php echo $this->weekendingdate; ?> on project <b><?php echo strtolower($this->projectname); ?></b>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>If you have any questions, please feel free to contact us.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

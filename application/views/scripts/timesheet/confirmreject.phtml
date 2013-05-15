@@ -1,0 +1,58 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$timesheet = new Timesheet(); 
+	
+	$timesheet->populate(decode($request->timesheetid)); 
+	$title = $this->translate("timesheet_pagetitle_reject");
+		
+	$this->headTitle($title);  
+	
+?>
+<style>
+	#rejectform table.formtable {
+		width: 400px; 
+	} 
+</style>
+<script>
+	$(document).ready(function() {
+		$("#rejectform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				notes: {
+					required: true,
+					maxlength: 250
+				}
+			}, 
+			// the messages for each of the fields being validated
+			messages: {	
+				notes: {			
+					required: "<?php echo $this->translate("timesheet_reject_message_error"); ?>",
+					maxlength: "<?php echo $this->translate("timesheet_reject_message_length_error"); ?>"
+				}
+			}
+		});
+	}); 
+</script>
+
+<form id="rejectform" action="<?php echo $this->baseUrl('timesheet/reject/timesheetid/'.$request->timesheetid); ?>" method="post">
+  <table class="formtable">
+    <tr>
+      <td class="label"><?php echo $this->translate("timesheet_reject_message_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea id="notes" name="notes" class="expanding"></textarea>
+        <input type="hidden" name="<?php echo SUCCESS_MESSAGE; ?>" id="<?php echo SUCCESS_MESSAGE; ?>" value="<?php echo 'timesheet_reject_success'; ?>" />
+        <input type="hidden" name="<?php echo URL_SUCCESS; ?>" id="<?php echo URL_SUCCESS; ?>" value="<?php echo $request->getParam(URL_SUCCESS); ?>" />
+        <input type="hidden" name="<?php echo URL_FAILURE; ?>" id="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl('timesheet/list/l'.HTML_TABLE_COLUMN_SEPARATOR.'status/1/')); ?>" />
+		  </td>
+    </tr>
+    <tfoot>
+      <tr>
+		<td>&nbsp;</td>
+        <td><button class="positiveaction" type="submit"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate('timesheet_button_reject'); ?></button></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

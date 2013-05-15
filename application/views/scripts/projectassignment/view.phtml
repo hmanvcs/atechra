@@ -1,0 +1,60 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$projectassignment = new ProjectAssignment();
+	$projectassignment->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("projectassignment_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("projectassignment_employee_label"); ?>:</td>
+    <td><?php echo $projectassignment->getEmployee()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("projectassignment_project_label"); ?>:</td>
+    <td><?php echo $projectassignment->getProject()->getTitle(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("projectassignment_startdate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($projectassignment->getStartDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("projectassignment_enddate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($projectassignment->getEndDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("projectassignment_notes_label"); ?>:</td>
+    <td><?php echo $projectassignment->getNotes(); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td colspan="2"><?php if ($acl->checkPermission('Project Assignment', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('projectassignment/delete/entityname/ProjectAssignment/id/'.encode($projectassignment->getID()).'/'.SUCCESS_MESSAGE.'/projectassignment has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("projectassignment/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("projectassignment_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("projectassignment_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Project Assignment', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('projectassignment/index/id/'.encode($projectassignment->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("projectassignment_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("projectassignment_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Project Assignment', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('projectassignment/list'); ?>" class="positiveaction" title="<?php echo $this->translate("projectassignment_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("projectassignment_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

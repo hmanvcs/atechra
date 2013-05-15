@@ -1,0 +1,123 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate("appconfig_pagetitle_view"); 
+	$this->headTitle($title);
+	$plural = "Variables"; 
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array());
+	$paginate->setFilterColumns(array("section"));
+	$paginate->setDefaultSortBy("optionname");	
+	$paginate->setDefaultSortOrder("ASC");
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT a.id AS id, a.section AS section, a.optionname AS optionname, a.optionvalue AS optionvalue, a.optiontype AS optiontype, a.active AS status, a.description AS description FROM appconfig  as a WHERE id <> '' ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	
+	# debugMessage($all_results_query);
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+?>
+
+<h2><?php # echo $title; ?></h2>
+<form action="<?php echo $this->baseUrl("appconfig/listsearch"); ?>" method="get" id="usersform">
+<table class="filtercontainer">
+    <tr>
+        <td>
+            <table class="filtersection">
+                <tr>
+                    <td>                    
+                    <?php
+				      	$sectionlist = new LookupType(); 
+				      	$sectionlist->setName("ALL_VARIABLE_SECTIONS");
+				       	$section = new Zend_Form_Element_Select('section',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array('' => 'All Sections'), $sectionlist->getOptionValuesFromQuery()),								'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('filterselect'),
+												'title' => 'Filter Variables By Section'
+											)
+										);
+						$section->setValue($request->getParam('section')); 
+						echo $section->render(); 
+				      ?>&nbsp;</td>                    
+                </tr>                 
+            </table>
+        </td>        
+    </tr>
+</table>
+<?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+	<label class="informationmessage"><?php echo $this->translate("appconfig_list_norecords"); ?></label>        
+<?php } else { ?> 
+<div id="counter"><?php echo $paginate->getItemCounterText()." ".$plural; ?></div>
+<div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+ <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Application Settings', ACTION_EXPORT)) { ?>
+  	<div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>  
+      <table class="list">	  
+			<caption><?php echo $title; ?></caption>
+      	<thead>
+          <tr>	
+          <?php if ($acl->checkPermission('Application Settings', ACTION_EDIT)) { ?>    	            
+            <td><?php echo $this->translate("global_list_action_edit"); ?></td>
+          <?php } ?>
+            <td><?php echo $paginate->getSortLinkForColumn('section', $this->translate('appconfig_section_label')); ?></td> 
+				<td><?php echo $paginate->getSortLinkForColumn('optionname',$this->translate('appconfig_optionname_label')); ?></td>                       
+            <td><?php echo $this->translate('appconfig_description_label'); ?></td>
+            <td><?php echo $this->translate('appconfig_optiontype_label'); ?></td>
+            <td><?php echo $this->translate('appconfig_status_label'); ?></td>            		
+          </tr>
+      	</thead>
+		<tbody>
+		<?php 				  		
+            foreach($result as $line){							
+        ?>
+        <tr> 
+        <?php if ($acl->checkPermission('Application Settings', ACTION_EDIT)) { ?>    	
+        	<td align="center"><a href="<?php echo $this->baseUrl('appconfig/index/id/'.encode($line['id'])); ?>" id="variable_<?php echo $line['id']; ?>_trigger" title="<?php echo $this->translate('appconfig_button_edit'); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="<?php echo $this->translate('appconfig_button_edit'); ?>" /></a></td>           	
+        <?php } ?>
+            <td><?php echo $line['section']; ?></td>
+				<td><a href="<?php echo $this->baseUrl('appconfig/view/id/'.encode($line['id'])); ?>" title="<?php echo $this->translate('appconfig_button_view'); ?>"><?php echo $line['optionname']; ?></a></td>
+            <td class="nowrapping"><?php echo $line['description']; ?></td>            	             
+            <td><?php echo $line['optionvalue']; ?></td>
+            <td align="center"><?php echo $line['status']; ?>
+            </td>           
+        </tr>        
+        <?php 						
+            } // end processing results 
+        ?>
+		</tbody>
+	</table>
+<?php			
+	} // end check that there are results    	
+?>
+<div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

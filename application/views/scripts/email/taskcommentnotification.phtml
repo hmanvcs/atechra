@@ -1,0 +1,29 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->firstname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->commentemailintro; ?>:<br /><br />"<?php echo $this->emailcontent; ?>"</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Click here to view and reply to this comment: <?php echo $this->serverUrl($this->url($this->emaillink)); ?></td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+   <tr>
+    <td>If the page fails to open, copy the link and paste it in the address window of your browser.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

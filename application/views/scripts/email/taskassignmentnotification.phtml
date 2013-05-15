@@ -1,0 +1,23 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->firstname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>You have been assigned a new task: <?php echo $this->taskname; ?>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Click here to view the details: <?php echo $this->serverUrl($this->url($this->taskurl)); ?></td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

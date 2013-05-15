@@ -1,0 +1,30 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td><?php echo $this->firstname; ?>,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>This email confirms that your Vacation/Sick timeoff request for <?php echo $this->requestedhours; ?> off from <?php echo $this->startdate; ?> to <?php echo $this->enddate; ?> has been <?php echo strtolower($this->approvalstatus); ?>.</td>
+  </tr>
+  <?php if (!isEmptyString($this->reason)) { ?>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><b>Reason:</b> <?php echo nl2br($this->reason); ?></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td>&nbsp;</td>
+  <tr>
+    <td>Click here to view the details: <?php echo $this->serverUrl($this->url($this->urltoview)); ?></td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

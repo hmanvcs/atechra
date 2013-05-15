@@ -1,0 +1,297 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$useraccount = new UserAccount(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("useraccount_pagetitle_new"); 
+	$posturl = $this->baseUrl("profile/create");
+	$button_title = $this->translate("useraccount_button_save"); 
+	
+	$employee_project_assignments = array();
+	$employee_project_assignments_ids = array();
+	$employee_project_assignments_projectids = array();
+	
+	if (!isEmptyString($request->id)) {
+		$useraccount->populate(decode($request->id));
+		$title = $this->translate("useraccount_pagetitle_edit"); 
+		$button_title = $this->translate("useraccount_button_edit");
+		$posturl = $this->baseUrl("profile/edit"); 
+
+		// get the currently assigned projects
+		$employee_project_assignments = $useraccount->getEmployeeProjectAssignments();
+		//debugMessage($employee_project_assignments);
+		
+		foreach($employee_project_assignments as $projectassignment) {
+			$employee_project_assignments_projectids[$projectassignment['id']] = $projectassignment['projectid'];
+		}
+		//debugMessage($employee_project_assignments_projectids);
+	}
+	
+	$userupdatingownaccount = true; 
+	if($userid != $useraccount->getID()){
+		# admin user is view another profile
+		$userupdatingownaccount = false; 
+	} 
+	
+	$lookupaclgroups = new LookupType();
+	$lookupaclgroups->setName("ALL_ACL_GROUPS"); 
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$useraccount->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+	
+	$conn = Doctrine_Manager::connection();
+	$allprojectsandclients = $conn->fetchAll("SELECT p.id, p.clientid, p.title as `Project Title`, p.jobnumber as `Job Number`, lv.lookupvaluedescription as `Type`, c.`name` AS `Client` FROM project as p INNER JOIN client AS c ON p.clientid = c.id INNER JOIN lookuptypevalue AS lv ON (p.`type` = lv.lookuptypevalue AND lv.lookuptypeid = 5)");
+	//debugMessage($allprojectsandclients);
+	
+?>
+<script>
+	$(document).ready(function() {
+		$('#tabs').tabs({
+			// the selected tab
+			///selected: '<?php //echo $request->tab; ?>'
+		});
+		$("#profileform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				firstname: "required",
+				lastname: "required",
+				email: {
+					"required": true, 
+					email: true
+				},
+				jobtitle: "required", 
+				companyname: "required",
+				companyaddress: "required",
+				"usergroups_groupid[]": {
+					"required": true,
+					"minlength": 1
+				},
+				maximumtimeoffhoursperyear: {
+					"required": true,
+					min: 0,
+					max: <?php echo $config->timesheet->maximumhoursperyear; ?>
+				}
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},	
+				jobtitle: "<?php echo $this->translate("useraccount_jobtitle_error"); ?>",
+				companyname: "<?php echo $this->translate("useraccount_companyname_error"); ?>",
+				companyaddress: "<?php echo $this->translate("useraccount_companyaddress_error"); ?>",
+			 	"usergroups_groupid[]": "<?php echo $this->translate("useraccount_group_error");?>",
+				maximumtimeoffhoursperyear: {
+					"required": "<?php echo $this->translate("useraccount_maximumtimeoffhoursperyear_error"); ?>"
+				}
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				if (element.attr("name") == "usergroups_groupid[]"){ 
+					error.appendTo("#employeegroup_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+		
+		// trigger show/hide when selecting/unselecting all
+		$("#selectall").click(function(){		
+			// check/uncheck all checkboxes		
+			$(".projectselector").attr("checked", $(this).is(":checked"));
+			//$("INPUT[type='checkbox'][@name='projectassignments_projectid[]']").attr("checked", $(this).is(":checked"));
+		});
+		
+	}); 
+</script>
+<style type="text/css">
+.ui-widget-content a {
+	color: #357ABF;
+}
+</style>
+<h1><?php echo $useraccount->getFirstName()." ".$useraccount->getLastName(); ?></h1>
+<form id="profileform" action="<?php echo $posturl; ?>" method="post">
+  <div id="tabs">
+    <ul>
+      <li><a class="1" href="#biodata"><?php echo $this->translate('useraccount_section_biodata'); ?></a></li>
+      <li><a class="2" href="#projectassignment"><?php echo $this->translate('useraccount_section_projectassignments'); ?></a></li>
+    </ul>
+    <div id="biodata" class="ui-tabs-hide">
+      <input type="hidden" id="id2" name="id2" value="<?php echo encode($useraccount->getID()); ?>" />
+      <table class="formtable">
+        <thead>
+          <tr>
+            <td colspan="2"><?php echo $title; ?></td>
+          </tr>
+        </thead>
+        <?php if ($sessionhaserror) { ?>
+        <tr>
+          <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+        </tr>
+        <?php } ?>
+        <tr>
+          <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="firstname" id="firstname" type="text" value="<?php echo $useraccount->getFirstName(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="lastname" id="lastname" type="text" value="<?php echo $useraccount->getLastName(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="email" id="email" type="text" value="<?php echo $useraccount->getEmail(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:</td>
+          <td><input name="phonenumber" class="shortinput" id="phonenumber" type="text" value="<?php echo $useraccount->getPhoneNumber(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_jobtitle_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="jobtitle" id="jobtitle" type="text" value="<?php echo $useraccount->getJobTitle(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_companyname_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input name="companyname" id="companyname" type="text" value="<?php echo $useraccount->getCompanyName(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_companyaddress_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><textarea class="expanding" name="companyaddress" id="companyaddress"><?php echo $useraccount->getCompanyAddress(); ?></textarea></td>
+        </tr>
+        <?php if($userupdatingownaccount){ ?>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:</td>
+          <td><input name="password" id="password" type="password" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_confirm_label"); ?>:</td>
+          <td><input name="confirmpassword" id="confirmpassword" type="password" /></td>
+        </tr>
+        <?php } else if (isNotAnEmptyString($request->id)) { ?>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:</td>
+          <td><?php if(!$userupdatingownaccount){ ?>
+            <a href="<?php echo $this->baseUrl('profile/resetpassword'); ?>" title="Click here to reset user's Password">Reset Password</a>
+            <?php }else{ ?>
+            <a href="<?php echo $this->baseUrl('profile/changepassword'); ?>" title="Click here to change your Password">Change Password</a>&nbsp;
+            <?php } ?></td>
+        </tr>
+        <?php } ?>
+        <?php if(!$userupdatingownaccount){ ?>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_section_groups"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><?php 	
+    		$cb = new Zend_Form_Element_MultiCheckbox('usergroups_groupid',
+    					array(
+							'multiOptions' => $lookupaclgroups->getOptionValuesFromQuery(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper')
+						)
+    				);
+    		$cb->setValue($useraccount->getGroupIDs()); 
+			$cb->setSeparator(' ');  
+    		echo $cb->render();	
+    	?>
+            <div id="employeegroup_error"></div></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_maximumtimeoffhoursperyear_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input type="text" class="shortinput" name="maximumtimeoffhoursperyear" id="maximumtimeoffhoursperyear" value="<?php echo $useraccount->getMaximumTimeOffHoursPerYear(); ?>" /></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_isactive_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+          <td><input type="radio" name="isactive" id="r_yes" class="<?php echo $useraccount->getIsActive() == intval(1) ? "Y" : "N" ; ?>" value="1" />
+            &nbsp;<?php echo $this->translate("useraccount_isactiveyes_label"); ?>
+            <input type="radio" name="isactive" id="r_no" class="<?php echo $useraccount->getIsActive() == intval(0) ? "Y" : "N" ; ?>" value="0" />
+            &nbsp;<?php echo $this->translate("useraccount_isactiveno_label"); ?></td>
+        </tr>
+        <tr>
+          <td class="label"><?php echo $this->translate("useraccount_emailnotification_label"); ?>: </td>
+          <td><input type="checkbox" name="receivetimesheetreminders" id="receivetimesheetreminders" class="<?php echo $useraccount->getReceiveTimesheetReminders() == intval(1) ? "Y" : "N" ; ?>" value="1" />
+            &nbsp;<?php echo $this->translate("useraccount_timesheetemailnotification_label"); ?> &nbsp;<br />
+            <br />
+            <input type="checkbox" name="receivestatusreportreminders" id="receivestatusreportreminders" class="<?php echo $useraccount->getReceiveStatusReportReminders() == intval(1) ? "Y" : "N" ; ?>" value="1" />
+            &nbsp;<?php echo $this->translate("useraccount_statusreportemailnotifications_label"); ?></td>
+        </tr>  
+        <tr>
+            <td class="label"><?php echo $this->translate("useraccount_corporatefilesettings_label"); ?>:</td>
+            <td>
+                <input type="checkbox" name="viewfilesandfolders" id="viewfilesandfolders" class="<?php echo $useraccount->canViewFilesAndFolders() ? "1" : "0" ; ?>" value="1" /> &nbsp;<?php echo $this->translate("useraccount_viewfilesandfolders_label"); ?><br /><br />
+                <input type="checkbox" name="uploadfiles" id="uploadfiles" class="<?php echo $useraccount->canUploadFiles() ? "1" : "0" ; ?>" value="1" /> &nbsp;<?php echo $this->translate("useraccount_uploadfiles_label"); ?><br /><br />
+                <input type="checkbox" name="createfolders" id="createfolders" class="<?php echo $useraccount->canCreateFolders() ? "1" : "0" ; ?>" value="1" /> &nbsp;<?php echo $this->translate("useraccount_createfolders_label"); ?><br /><br />
+                <input type="checkbox" name="deletefiles" id="deletefiles" class="<?php echo $useraccount->canDeleteFiles() ? "1" : "0" ; ?>" value="1" /> &nbsp;<?php echo $this->translate("useraccount_deletefiles_label"); ?><br /><br />
+                <input type="checkbox" name="deletefolders" id="deletefolders" class="<?php echo $useraccount->canDeleteFolders() ? "1" : "0" ; ?>" value="1" /> &nbsp;<?php echo $this->translate("useraccount_deletefolders_label"); ?>
+            </td>
+        </tr>      
+        <?php } ?>
+        <tfoot>
+          <tr>
+            <td>&nbsp;</td>
+            <td><a href="<?php echo $this->baseUrl("profile/view/id/".encode($useraccount->getID())); ?>" title="<?php echo $this->translate("global_button_cancel"); ?>"><?php echo $this->translate("global_button_cancel"); ?></a>&nbsp;&nbsp;
+              <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" alt="<?php echo $button_title; ?>" />&nbsp;<?php echo $button_title; ?></button>
+              <input type="hidden" name="entityname" value="UserAccount" />
+              <?php if (isEmptyString($request->id)) { ?>
+              <input name="activationkey" type="hidden" value="<?php echo $useraccount->generateActivationKey(); ?>" />
+              <?php }  ?></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div id="projectassignment" class="ui-tabs-hide">
+      <table class="formtable">
+        <thead>
+          <tr>
+            <td><input type="checkbox" id="selectall" class="checkbox"></td>
+            <td><?php echo $this->translate("project_title_label"); ?></td>
+            <td><?php echo $this->translate('project_jobnumber_label'); ?></td>
+            <td><?php echo $this->translate('project_type_label'); ?></td>
+            <td><?php echo $this->translate('project_client_label'); ?></td>
+          </tr>
+        </thead>
+        <?php foreach($allprojectsandclients as $project) { 
+	  			//foreach($employee_project_assignments as $projectassignment) {	?>
+        <tr>
+          <td><input type="checkbox" name="projectassignments_projectid[]" id="projectassignments_projectid-<?php echo $project['id']; ?>" value="<?php echo $project['id']; ?>" class="projectselector <?php if(in_array($project['id'], $employee_project_assignments_projectids)) { ?>Y<?php } ?>">
+            <input type="hidden" name="projectassignments_clientid[]" id="projectassignments_clientid-<?php echo $project['id']; ?>" value="<?php echo $project['clientid']; ?>" />
+            <?php if(array_search($project['id'], $employee_project_assignments_projectids)) { ?>
+            <input type="hidden" name="projectassignments_id[]" id="projectassignments_id-<?php echo $project['id']; ?>" value="<?php echo array_search($project['id'], $employee_project_assignments_projectids); ?>" />
+            <?php } ?></td>
+          <td><a href="<?php echo $this->baseUrl("project/view/id/".encode($project['id'])); ?>" title="<?php echo $this->translate("project_button_view"); ?>"><?php echo $project['Project Title']; ?></a></td>
+          <td><?php echo $project['Job Number']; ?></td>
+          <td><?php echo $project['Type']; ?></td>
+          <td><?php echo $project['Client']; ?></td>
+        </tr>
+        <?php //} ?>
+        <?php } ?>
+        <tfoot>
+          <tr>
+            <td>&nbsp;</td>
+            <td><a href="<?php echo $this->baseUrl("profile/view/id/".encode($useraccount->getID())); ?>" title="<?php echo $this->translate("global_button_cancel"); ?>"><?php echo $this->translate("global_button_cancel"); ?></a>&nbsp;&nbsp;
+              <button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" alt="<?php echo $button_title; ?>" />&nbsp;<?php echo $button_title; ?></button>
+              <input type="hidden" name="entityname" value="UserAccount" />
+              <input type="hidden" id="id" name="id" value="<?php echo encode($useraccount->getID()); ?>" />
+              <?php if (isEmptyString($request->id)) { ?>
+              <input name="activationkey" type="hidden" value="<?php echo $useraccount->generateActivationKey(); ?>" />
+              <?php }  ?></td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

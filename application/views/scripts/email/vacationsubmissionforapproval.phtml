@@ -1,0 +1,31 @@
+<table border="0" cellspacing="1" cellpadding="0">
+  <tr>
+    <td>Hello,</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->employee; ?> has submitted a Vacation/Sick timeoff request for <?php echo $this->requestedhours; ?> off from <?php echo $this->startdate; ?> to <?php echo $this->enddate; ?>.</td>
+  </tr>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>You can approve this request using the link: <?php echo $this->serverUrl($this->url($this->approvallink)); ?></td>
+  </tr>
+  <?php if (!isEmptyString($this->notes)) { ?>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><b>Notes to approver:</b> <?php echo nl2br($this->notes); ?></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td><?php echo $this->signoffname."<br />".$this->signoffemail."<br />".$this->serverUrl($this->baseUrl()); ?></td>
+  </tr>
+</table>

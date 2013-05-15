@@ -1,0 +1,168 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$folder = new Folder(); 
+	
+	// default title is to enable adding new task
+	$title = $this->translate("folder_pagetitle_new"); 
+	$posturl = $this->baseUrl("folder/create");
+	$button_title = $this->translate("folder_button_save");
+	// set parent id
+	if(!isEmptyString($request->parentid)){
+		$folder->setParentID($request->parentid);
+	} else {
+		$folder->setParentID('1');
+	}
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$folder->populate(decode($request->id));
+		$title = sprintf($this->translate("folder_pagetitle_edit")); 
+		$button_title = $this->translate("folder_button_save");
+		$posturl = $this->baseUrl("folder/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$folder->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle("Update Folder");  
+
+?>
+<script>
+$(document).ready(function() {
+	// add the validation for name
+	$.validator.addMethod("validname", function(value, element, params) { 
+		if (IsValidName(value)) {
+			return true; 
+		}
+		return false;        
+	}, "<?php echo $this->translate("folder_name_page_invalid_error"); ?>");
+	
+	$("#folderform").validate({		
+		// define the validation rules one field at a time
+		rules: {
+			name: {
+				required: true,
+				maxlength: "50",
+				validname: true
+			}
+		}, 
+		// the messages for each of the fields being validated
+		messages: {
+			name: {
+				required: "<?php echo $this->translate("folder_name_error"); ?>",
+				maxlength: "<?php echo sprintf($this->translate("folder_name_length_error"), 50); ?>"
+			}
+		}
+	});
+	
+	// check that name is a valid string
+	function IsValidName(value){
+		var regexp = /^[a-zA-Z0-9 _-]+$/;
+		if (value.search(regexp) == -1) { 
+			return false;
+		} else { 
+			return true;
+		}
+	}
+}); 
+</script>
+<style>
+table.formtable {
+	margin-bottom:10px;
+}
+select.multipleselect {
+	width:95%;
+}
+</style>
+<form id="folderform" action="<?php echo $posturl; ?>" method="post">
+    <table class="formtable">
+        <thead>
+            <tr>
+                <td colspan="2"><?php echo $title; ?></td>
+            </tr>
+        </thead>
+		<?php if ($sessionhaserror) { ?>
+            <tr>
+                <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+            </tr>
+        <?php } ?>
+        <tr>
+            <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+        </tr>    
+        <tr>
+            <td class="label"><?php echo $this->translate("folder_name_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+            <td><input type="text" name="name" id="name" value="<?php echo $folder->getName(); ?>" /></td>
+        </tr>    
+        <tr>
+            <td class="label"><?php echo $this->translate("folder_description_label"); ?>:</td>
+            <td><textarea class="expanding" name="description" id="description"><?php echo $folder->getDescription(); ?></textarea></td>
+        </tr>
+	</table>
+	<?php if ($acl->checkPermission('Application Settings', ACTION_VIEW)) { ?>
+    <table class="formtable">
+        <thead>
+            <tr>
+                <td colspan="2">Folder Permissions</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="label">Allowed by Default:</td>
+                <td><?php echo $folder->grantList(); ?></td>
+            </tr>
+            <tr>
+                <td class="label">Deny Access:</td>
+                <td><?php // echo $folder->deniedList(); ?> <br />
+                <?php
+					  $listdropdown = new Zend_Form_Element_Multiselect('deniedlistids',
+							  array(
+									  'multiOptions' => getAllSystemUsersWithFlag($userid),
+									  'view' => new Zend_View(),
+									  'decorators' => array(array('ViewHelper')),
+									  'class' => array('chzn-select','multipleselect')
+							  )
+					  );
+					  
+					  $listdropdown->setValue($folder->getDeniedIDs());
+					  $listdropdown->setAttrib("data-placeholder", 'Select users to deny access');
+					  echo $listdropdown->render();
+				  ?>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <?php } ?>
+    <table class="formtable">
+        <tfoot>
+            <tr>
+                <td align="right" style="width:200px;">
+                <?php if ($acl->checkPermission('Folder', ACTION_LIST)) { ?>	
+                    <a href="<?php echo $this->baseUrl("corporatefile/list/parentid/".$folder->getParentID()); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>
+                <?php } ?>    
+                </td>                    
+                <td>
+                    <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+                    <input type="hidden" name="entityname" value="Folder" />
+                    <input type="hidden" name="oldfoldername" id="oldfoldername" value="<?php echo $folder->getName(); ?>" />
+                    <input type="hidden" id="id" name="id" value="<?php echo encode($folder->getID()); ?>" />
+                    <input type="hidden" id="parentid" name="parentid" value="<?php echo $folder->getParentID(); ?>" />
+                    <input type="hidden" id="parentpath" name="parentpath" value="<?php echo $folder->getParent()->getAbsoluteFolderPath(); ?>" /></td>
+                    <input type="hidden" id="<?php echo URL_SUCCESS; ?>" name="<?php echo URL_SUCCESS; ?>" value="<?php echo encode($this->baseUrl('corporatefile/list/parentid/'.$folder->getParentID())); ?>" />
+                    <?php if(isEmptyString($request->id)){ ?>
+                        <input type="hidden" id="<?php echo SUCCESS_MESSAGE; ?>" name="<?php echo SUCCESS_MESSAGE; ?>" value="<?php echo 'corporatefile_newfolder_success'; ?>" />
+                        <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl('folder/index/id/parentid/'.$folder->getParentID())); ?>" />    
+                    <?php } else { ?> 
+                        <input type="hidden" id="<?php echo SUCCESS_MESSAGE; ?>" name="<?php echo SUCCESS_MESSAGE; ?>" value="<?php echo 'corporatefile_renamefolder_success'; ?>" />
+                        <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl('folder/index/id/'.encode($folder->getID()))); ?>" />     
+                    <?php } ?>
+                    
+            </tr>
+        </tfoot>
+    </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

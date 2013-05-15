@@ -1,0 +1,132 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("useraccount_pagetitle_signup"); 
+	
+	$useraccount = new UserAccount(); 
+	
+	$posturl = $this->baseUrl("signup/signup"); 
+	
+	if ($sessionhaserror) {
+		$useraccount->processPost($session->getVar(FORM_VALUES)); 
+	} 
+	
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+	
+?>
+<script>
+	$(document).ready(function() {
+		$("#signupform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				firstname: "required",
+				lastname: "required",
+				email: {
+					"required": true, 
+					email: true
+				},
+				phonenumber: {
+					required: true,
+					phoneUS: true
+				},
+				confirmpassword: {
+					required: true,
+					equalTo: "#password"
+				},
+				securityquestion: "required",
+				securityanswer: "required",
+				agreedtoterms: "required" 
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},
+				phonenumber: {
+					"required": "<?php echo $this->translate("useraccount_phonenumber_error"); ?>", 
+					"phoneUS": "<?php echo $this->translate("useraccount_phonenumber_us_error"); ?>"
+				},
+				confirmpassword: {
+					required: "<?php echo $this->translate("useraccount_confirmpassword_error"); ?>",
+					equalTo: "<?php echo $this->translate("useraccount_confirmpassword_error_equalto"); ?>"
+				},
+				securityquestion: "<?php echo $this->translate("useraccount_securityquestion_error"); ?>",
+				securityanswer: "<?php echo $this->translate("useraccount_securityanswer_error"); ?>",
+				agreedtoterms: "<?php echo $this->translate("useraccount_agreetoterms_error"); ?>" 
+			}
+		});
+	}); 
+</script>
+<h1><?php echo $title; ?></h1>
+<form id="signupform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr class="sectionheading">
+      <td colspan="2"><?php echo $this->translate("useraccount_section_general"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%"><input id="firstname" name="firstname" type="text" value="<?php echo $useraccount->getFirstName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="lastname" name="lastname" type="text" value="<?php echo $useraccount->getLastName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="email" name="email" type="text" value="<?php echo $useraccount->getEmail(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="phonenumber" name="phonenumber" type="text" value="<?php echo $useraccount->getPhoneNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input class="password" id="password" name="password" type="password" />
+        <div class="password-meter">
+          <div class="password-meter-message"> </div>
+          <div class="password-meter-bg">
+            <div class="password-meter-bar"></div>
+          </div>
+        </div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_confirm_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="confirmpassword" name="confirmpassword" type="password" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_securityquestion_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="securityquestion" name="securityquestion" type="text" value="<?php echo $useraccount->getSecurityQuestion(); ?>" /></td>
+    </tr>
+     <tr>
+      <td class="label"><?php echo $this->translate("useraccount_securityanswer_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="securityanswer" name="securityanswer" type="text" value="<?php echo $useraccount->getSecurityAnswer(); ?>" /></td>
+    </tr>
+     <tr>
+       <td class="label"><?php echo $this->translate("useraccount_section_terms"); ?>:</td>
+       <td>&nbsp;<input type="checkbox" name="agreedtoterms" id="agreedtoterms" value="Y" />
+        <?php echo sprintf($this->translate("useraccount_terms_accept_label"), $this->baseUrl('termsandconditions')); ?></td>
+     </tr>
+    <tr>
+      <td colspan="2" align="center"><br /><a class="negativeaction" href="<?php echo $this->baseUrl('index'); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+        <button type="submit" class="positiveaction"><img src="<?php echo $this->baseUrl('images/signup.png'); ?>" /><?php echo $this->translate('useraccount_button_signup'); ?></button>
+        <input name="activationkey" type="hidden" value="<?php echo $useraccount->generateActivationKey(); ?>" /><br />The information you submit will remain confidential.
+Under no circumstances will this information be sold or distributed to other parties except to be shared with Track Data Securities.
+    </tr>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

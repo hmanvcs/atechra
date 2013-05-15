@@ -1,0 +1,19 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	if ($this->result) {
+		$this->headTitle($this->translate("useraccount_pagetitle_activation_success"));
+?>
+<h1><?php echo $this->translate("useraccount_pagetitle_activation_success");?></h1>
+Your account on <?php echo $this->translate("appname");?> has been successfully activated. You can now log in using the email address and password you chose during the registration.<br><br>
+<a class="positiveaction" href="<?php echo $this->baseUrl("user/logout")?>"><img src="<?php echo $this->baseUrl('images/login.png'); ?>" />Login Now</a>
+<?php
+	} else {
+		$this->headTitle($this->translate("useraccount_pagetitle_activation_failure"));
+?>
+		<h1><?php echo $this->translate("useraccount_pagetitle_activation_failure");?></h1>
+		<?php echo $this->message; ?>
+<?php 
+	}
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

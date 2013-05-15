@@ -1,0 +1,105 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$task = new Task();
+	$task ->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("task_pagetitle_view"); 
+	$this->headTitle($title);    
+?>
+<script>
+			$(document).ready(function(){
+				// approve dialog boxes
+				$("#deletedialog, #approvedialog, #dialog").dialog({
+							resizable: false,
+							height:140,
+							width:450,
+							modal: true,
+							autoOpen: false
+				});
+					
+				// Confirm that the user wants to delete the vacation
+				$(".delete").click(function(e){
+					e.preventDefault();
+					var theHREF = $(this).attr("href");
+				  
+					$("#deletedialog").dialog('option', 'buttons', {
+						 "Delete" : function() {
+									window.location.href = theHREF;
+							  },
+						 "Cancel" : function() {
+									$(this).dialog("close");
+							  }
+					});
+					
+					// open the dialog
+					$("#deletedialog").dialog("open");
+				});	
+			});
+	
+</script>
+
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('task_button_delete'); ?>"><?php echo $this->translate('task_delete_confirmation'); ?></div>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_project_label"); ?>:</td>
+    <td width="99%"><?php echo $task->getProject()->getTitle(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_name_label"); ?>:</td>
+    <td><?php echo $task->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_status_label"); ?></td>
+    <td><?php echo LookupType::getLookupValueDescription("TASK_STATUS", $task->getStatus()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_duedate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($task->getDueDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_dateclosed_label"); ?></td>
+    <td><?php echo changeMySQLDateToPageFormat($task->getDateClosed()); ?></td>
+  </tr>
+  <tr>
+    <td nowrap="nowrap" class="label" valign="top"><?php echo $this->translate("task_assignee_label"); ?>:</td>
+    <td><?php echo $task->displayAssignees(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("task_notes_label"); ?>:</td>
+    <td><?php echo nl2br($task->getNotes()); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td colspan="2"><?php if ($acl->checkPermission('Task', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('task/delete/entityname/Task/id/'.encode($task->getID()).'/'.SUCCESS_MESSAGE.'/task has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("task/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("task_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("task_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Task', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('task/index/id/'.encode($task->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("task_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("task_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Task', ACTION_LIST)) { ?>
+        	<?php if($request->source == '1'){ ?>
+        		<a href="<?php echo $this->baseUrl('task/completed'); ?>" class="positiveaction" title="<?php echo $this->translate("task_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("task_button_list"); ?></a>
+           	<?php } else { ?>
+            	<a href="<?php echo $this->baseUrl('task/list'); ?>" class="positiveaction" title="<?php echo $this->translate("task_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("task_button_list"); ?></a>
+            <?php } ?>
+        <?php } ?>
+        <a href="<?php echo $this->baseUrl("taskcomment/list/tc".HTML_TABLE_COLUMN_SEPARATOR."taskid/".$task->getID()); ?>" class="positiveaction" title="<?php echo $this->translate("task_button_viewcomments"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("task_button_viewcomments"); ?></a></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	//require_once APPLICATION_PATH.'/includes/footer.php';
+?>

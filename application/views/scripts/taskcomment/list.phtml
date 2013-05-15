@@ -1,0 +1,189 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	// check if the task id is specified
+	if (isEmptyString($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid'))) {
+		$title = $this->translate("taskcomments_pagetitle_list");
+	} else {
+		$task = new Task();
+		$task->populate($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid'));
+
+		// append the task name to the page title
+		$title = $this->translate("taskcomments_pagetitle_list")." : ".$task->getName(); 
+	}
+		
+	
+	$this->headTitle($title); 
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("u.firstname", "u.lastname", "tc.content"));
+	$paginate->setFilterColumns(array("tc.taskid"));
+	$paginate->setDefaultSortBy("tc.datecreated");
+	$paginate->setSortOrder("DESC");
+		
+	// custom_query
+	$current_user_filter = "";
+	if (!$acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's tasks 
+		$current_user_filter = " AND tc.createdby = '".$userid."' ";
+	}
+		
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT tc.id, tc.taskid, concat(u.firstname,' ',u.lastname) AS `Posted By`, tc.content AS Content, tc.originalfilename, tc.newfilename, tc.datecreated AS `Date Created` FROM taskcomment AS tc Inner Join useraccount AS u WHERE tc.createdby = u.id ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 	
+	//debugMessage($result);
+	
+?>
+<script>
+$(document).ready(function() {
+	
+	$('select.<?php echo 'tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid'; ?>').change(function(){		
+		// Trigger a change on the taskid to regenerate the select for the client tasks
+		$(this).trigger("liszt:updated");			
+	});				
+	
+}); 
+</script>
+<style>
+.taskdropdown select {
+	width:380px;
+}
+table.list tr td.contents {
+	width:650px;
+	white-space:normal;
+}
+table.list tr td.posterdetails {
+	vertical-align:top;
+}
+</style>
+<h1><?php echo $title; ?></h1>
+<form id="taskcommentform" action="<?php echo $this->baseUrl("taskcomment/listsearch"); ?>" method="get">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td class="taskdropdown">
+			<?php 
+			$tasklookup = new LookupType;
+			$tasks = array();
+			if ($acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) { 
+				$tasklookup->setName("ALL_TASKS"); 
+				$tasks = $tasklookup->getOptionValuesFromQuery();
+			} else { 
+				// only show tasks assigned to an employee
+				$tasks = getOptionValuesFromDatabaseQuery("SELECT t.id AS optionvalue, t.name AS optiontext FROM task AS t Inner Join taskassignee AS ta ON t.id = ta.taskid WHERE ta.employeeid = '".$userid."' GROUP BY t.id ORDER BY optiontext ASC");
+			}
+			?>
+			<?php 
+			$taskdropdown = new Zend_Form_Element_Select('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid',
+				array(
+					'multiOptions' => array_merge_maintain_keys(array('' => '<Select a Task>'), $tasks),								
+					'view' => new Zend_View(),
+					'decorators' => array('ViewHelper'),
+					'class' => array('chzn-select','autosubmitsearchform'),
+				)
+			);
+			$taskdropdown->setValue($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid')); 				
+			echo $taskdropdown->render();
+		?></td>
+            <td>&nbsp;</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="2">&nbsp;</td>
+            <td>&nbsp;</td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td ><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="Enter your search term" />
+              <br />
+              <button type="submit" class="positiveaction" id="searchbutton" title="Click here to Search or Filter"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="Search"/>Search</button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+</form>
+<br />
+<?php if(isEmptyString($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid')) and isEmptyString($request->searchterm)){ ?>
+<label class="informationmessage"><?php echo $this->translate("taskcomment_list_notaskselected"); ?></label>
+<?php } else { ?>
+<?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+<label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+<?php } ?>
+<?php // only display this is the user has the appropriate permission and the taskid is not empty
+if ((!isEmptyString($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid')))) { ?>
+<a href="<?php echo $this->baseUrl('taskcomment/index/taskid/'.encode($request->getParam('tc'.HTML_TABLE_COLUMN_SEPARATOR.'taskid'))); ?>" title="<?php echo $this->translate('taskcomment_button_new'); ?>" class="positiveaction"><img src="<?php echo $this->baseUrl('images/add.png'); ?>" /><?php echo $this->translate('taskcomment_button_new'); ?></a><br />
+<br />
+<?php } ?>
+<?php // show a message that there are no items to display
+		if ($has_no_data) {
+	?>
+<label class="informationmessage"><?php echo $this->translate("taskcomment_list_norecords"); ?></label>
+<?php } else { ?>
+<div id="counter"><?php echo sprintf($this->translate("taskcomment_list_counter"), $paginate->getItemCounterText()); ?></div>
+<div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+<table class="list">
+  <thead>
+    <tr>
+      <td id="sender"><?php echo $this->translate("taskcomment_postedby_label"); ?></td>
+      <td id="details"><?php echo $this->translate("taskcomment_content_label"); ?></td>
+      <td id="date"><?php echo $this->translate("taskcomment_datecreated_label"); ?></td>
+    </tr>
+  </thead>
+  <tbody>
+    <?php  
+	foreach($result as $line){ ?>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $("#readmore_<?php echo $line['id']; ?>").click(function(){					
+                $("#dialog_<?php echo $line['id']; ?>").dialog({
+                    width: 500,
+                    height: 400,
+                    show: 'fadein',						
+                    modal: true,
+                    title: $(this).attr('rel'),						
+                    buttons: [{text: "Ok", click: function() { $(this).dialog("close"); }}] 
+                });
+            });
+        });
+        </script>
+    <tr>
+      <td class="posterdetails" nowrap="nowrap"><?php echo $line['Posted By']; ?></td>
+      <td class="contents"><?php echo snippet(nl2br($line['Content']), 500, '<a title="Read more" rel="'.$this->translate("taskcomment_content_label").' " id="readmore_'.$line['id'].'" href="javascript:doNothing();">...read more</a>'); ?><br />
+        <?php if (!isEmptyString($line['originalfilename'])) { ?>
+        <br />
+        Download: <a href="<?php echo $this->baseUrl('download/index/taskid/'.encode($line['taskid']).'/filename/'.encode($line['newfilename'])); ?>" title="Download attachment"><?php echo $line['originalfilename']; ?></a>
+        <?php } ?>
+        <div id="dialog_<?php echo $line['id']; ?>" class="hidden" style="width:500px; height:250px;"> <br />
+          <label><?php echo nl2br($line['Content']); ?></label>
+        </div></td>
+      <td class="posterdetails" valign="top" nowrap="nowrap"><?php echo date($config->dateandtime->shortformat, strtotime($line['Date Created'])); ?><br />
+        <?php echo date('g:i A', strtotime($line['Date Created'])); ?></td>
+    </tr>
+    <?php } // end looping through the results  ?>
+  </tbody>
+</table>
+<?php } ?>
+<div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+<?php //} ?>
+<?php } ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

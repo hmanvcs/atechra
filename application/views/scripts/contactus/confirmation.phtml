@@ -1,0 +1,13 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = "Confirmation"; 
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+?>
+<h1><?php echo $title; ?></h1>
+Thank you for your interest in <?php echo $this->translate('companyname'); ?>. We will respond to you as soon as possible.
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

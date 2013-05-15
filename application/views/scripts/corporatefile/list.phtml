@@ -1,0 +1,339 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate('corporatefile_pagetitle_list');
+	$this->headTitle($title);
+	
+	$base_path = APPLICATION_PATH.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.PUBLICFOLDER.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR;
+	$images_root = APPLICATION_PATH.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.PUBLICFOLDER.DIRECTORY_SEPARATOR.'images'.DIRECTORY_SEPARATOR;
+	  
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("d.name","f.name"));	
+	$paginate->setDefaultSortBy("f.datecreated");	
+	$paginate->setDefaultSortOrder("DESC");
+	
+	$currentfolderid = 1;
+	$issearch = false;
+	$search = $request->search;
+	$searchterm = $request->searchterm;
+	if(!isEmptyString($searchterm)){
+		$issearch = true;
+		$folder_custom_query = " AND d.name LIKE '%".$searchterm."%' ";
+		$file_custom_query = " AND f.filename LIKE '%".$searchterm."%' ";
+	} else {
+		$folder_custom_query = " AND d.parentid = ".$currentfolderid;
+		$file_custom_query = " AND f.folderid = ".$currentfolderid;
+	}
+	
+	if(!isEmptyString($request->parentid)){
+		$currentfolderid = $request->parentid;
+		if(isEmptyString($searchterm)){
+			$folder_custom_query = " AND d.parentid = '".$currentfolderid."' ";
+			$file_custom_query = " AND f.folderid = '".$currentfolderid."' ";
+		} else {
+			//$folder_custom_query .= " AND d.parentid >= ".$currentfolderid;
+			//$file_custom_query .= " AND f.folderid >= ".$currentfolderid;
+		}
+	}
+	$folder = new Folder();
+	$folder->populate($currentfolderid);	
+	$folder->setCreatedBy($userid);
+	$allowed = 1;
+	if(!$folder->isAllowedToView()){
+		$allowed = 0;
+		// debugMessage("not allowed here. fuck off");
+	}
+	// debugMessage($folder->getCreator()->toArray());
+	
+	$paginate->processPost($request->getParams());	
+	$all_results_query = "
+		(SELECT d.id as id, d.name as `Name`, d.description as `title`, 'Directory' as `Type`, d.parentid as parentid, '' as `ext`, '' as filesize, d.datecreated as `date`, d.createdby as `uploaderid`, concat(ud.firstname, ' ', ud.lastname) as `uploadedby`, ud.viewfilesandfolders, ud.uploadfiles, ud.createfolders, ud.deletefiles, ud.deletefolders FROM folder AS d inner join useraccount as ud on (d.createdby = ud.id) WHERE d.id <> '' ".$folder_custom_query.") 
+		UNION (SELECT f.id as id, f.filename as `Name`, f.title as `title`, 'File' as `Type`, f.folderid as parentid, f.extension as `ext`, f.filesize as filesize,  f.datecreated as `date`, f.createdby as `uploaderid`, concat(uf.firstname, ' ', uf.lastname) as `uploadedby`, uf.viewfilesandfolders, uf.uploadfiles, uf.createfolders, uf.deletefiles, uf.deletefolders FROM corporatefile AS f inner join useraccount as uf on (f.createdby = uf.id) WHERE f.id <> '' ".$file_custom_query.") ORDER BY `Type`, Name ASC";
+		
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<script>
+$(document).ready(function(){
+	// dialog boxes
+	$("#deletedialog_file, #deletedialog_folder, #dialog").dialog({
+		resizable: false,
+		width:450,
+		modal: true,
+		autoOpen: false
+	});
+		
+	// Confirm that the user wants to delete the file
+	$(".delete_file").click(function(e){
+		e.preventDefault();
+		var theHREF = $(this).attr("href");
+	  
+		$("#deletedialog_file").dialog('option', 'buttons', {
+			 "Delete" : function() {
+					$(".ui-dialog-buttonpane button:contains(Delete), .ui-dialog-buttonpane button:contains(Cancel)").hide();
+					$("#contents_file").hide();
+					$("#wait_delete_file").show();
+					window.location.href = theHREF;
+			  },
+			 "Cancel" : function() {
+			 		$(this).dialog("close");
+			  }
+		});
+		
+		// open the dialog
+		$("#deletedialog_file").dialog("open").height('auto');
+	});
+	// Confirm that the user wants to delete the folder
+	$(".delete_folder").click(function(e){
+		e.preventDefault();
+		var theHREF = $(this).attr("href");
+	  
+		$("#deletedialog_folder").dialog('option', 'buttons', {
+			 "Delete" : function() {
+					$(".ui-dialog-buttonpane button:contains(Delete), .ui-dialog-buttonpane button:contains(Cancel)").hide();
+					$("#contents_folder").hide();
+					$("#wait_delete_folder").show();
+					window.location.href = theHREF;
+			  },
+			 "Cancel" : function() {
+			 		$(this).dialog("close");
+			  }
+		});
+		
+		// open the dialog
+		$("#deletedialog_folder").dialog("open").height('auto');
+	});
+	
+	// reload page
+	$('#reload').click(function(){
+		window.location.reload(true);
+	});
+	
+	// trigger show/hide when selecting/unselecting all
+	$("#selector, .itemselect").attr('checked', false);	
+	$("#selector").click(function(){				
+		var checked_status = this.checked;
+		$(".itemselect").each(function(){
+			this.checked = checked_status;
+		});
+	});
+	
+});
+</script>
+<h1><?php echo $title; ?></h1>
+<form action="<?php echo $this->baseUrl("corporatefile/corporatefilesearch"); ?>" method="get" id="filesform">  
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  	<label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(ERROR_MESSAGE))){ ?>
+  	<label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+  <?php } ?>
+  <table class="list">
+  	<tr>
+    	<td width="70%">
+        	<a href="javascript: doNothing();" id="reload" class="positiveaction" title="Refresh"><img src="<?php echo $this->baseUrl("images/refresh.png"); ?>" /></a>
+			<?php if(!isEmptyString($folder->getParentID())){ ?>
+                <a href="<?php echo $this->baseUrl("corporatefile/list/parentid/".$folder->getParentID()); ?>" id="up" class="positiveaction" title="Up One Level"><img src="<?php echo $this->baseUrl("images/arrow_up.png"); ?>" /></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('Folder', ACTION_CREATE) && $folder->getCreator()->canCreateFolders()) { ?>
+                <a href="<?php echo $this->baseUrl('folder/index/parentid/'.$folder->getID()); ?>" title="Add new Folder to current location" class="positiveaction"><img src="<?php echo $this->baseUrl("images/add.png"); ?>" />New Folder</a> 
+            <?php } ?>
+            <?php if ($acl->checkPermission('Corporate File', ACTION_CREATE) && $folder->getCreator()->canUploadFiles()) { ?>
+                <a href="<?php echo $this->baseUrl('corporatefile/index/folderid/'.$folder->getID()); ?>" title="Upload a file to current location" class="positiveaction"><img src="<?php echo $this->baseUrl("images/add.png"); ?>" />Upload File</a> 
+            <?php } ?>
+        </td>
+        <td width="30%"><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button>
+        <input type="hidden" name="parentid" id="parentid" value="<?php echo $request->parentid; ?>" />
+        </td>
+    </tr>
+  </table>
+  	<span id="breadcrumb">Current Location: <b><?php echo generateFolderBreadcrumb($currentfolderid); ?></b></span>
+  <table class="list">    
+    <thead>
+        <tr>
+            <td align="center" width="15"><input type="checkbox" name="selector" id="selector" class="selector" value="1" /></td>
+            <td align="center" width="20"></td>        
+            <td width="250">Name</td>
+            <td width="80">Type</td>
+            <td width="80">Size</td>
+            <td width="140">Date Uploaded</td>
+            <td width="125">Uploaded By</td>
+            <td>Actions</td>      
+        </tr>
+    </thead>
+    <?php if(!$issearch){ ?>
+    <tbody>
+    	<tr>
+        	<td>
+				<?php if(!isEmptyString($folder->getParentID())){ ?>
+                    <a href="<?php echo $this->baseUrl("corporatefile/list/parentid/".$folder->getParentID()); ?>" title="Up One Level"><img src="<?php echo $this->baseUrl("images/arrow_up.png"); ?>" /></a>
+                <?php } ?>    
+            </td>
+            <td></td>
+        	<td colspan="6"><b><?php echo $folder->getFolderName(); ?></b></td>
+        </tr>
+    </tbody>
+    <?php } ?>	 
+    <tbody>
+     <?php // show a message that there are no items to display
+        if ($has_no_data) {
+     ?>
+      	<tr><td colspan="8"><label class="informationmessage" style="width:30%;"><?php echo $this->translate('corporatefile_list_norecords'); ?></label></td></tr>
+     <?php } else { ?>  	
+		 <?php 
+		 	$totalfolders = 0;
+			$totalfiles = 0;
+		 	foreach($result as $line){ 
+		  ?>
+			 <?php if($line['Type'] == 'Directory'){ 
+			 		$path = getAbsoluteFolderPath($line['id']);
+					$totalfolders = $totalfolders+1;
+					
+					$linefolder = new Folder();
+					$linefolder->populate($line['id']);
+					$linefolder->setCreatedBy($userid);
+					// debugMessage($linefolder->toArray());
+					if($linefolder->isAllowedToView()){
+			 ?>	
+                 <tr>
+                    <td align="center"><input type="checkbox" name="check_<?php echo $line['id']; ?>" id="check_<?php echo $line['id']; ?>" class="itemselect" value="1" /></td>
+                    <td align="center"><img src="<?php echo $this->baseUrl("images/dir.png"); ?>" /></td>
+                    <td class="nowrapping"><a href="<?php echo $this->baseUrl("corporatefile/list/parentid/".$line['id']); ?>" title="Browse '<?php echo $line['Name']; ?>'"><?php echo $line['Name']; ?></a>
+                    <span class="titletext"><?php echo $line['title']; ?></span>
+                    </td>
+                    <td>
+					<?php echo 'FOLDER'; 
+						// determine if folder has content 
+						// echo 'CONTENT';
+					?>
+                    </td>
+                    <td>-</td>        
+                    <td><?php echo date('m/d/Y h:i A', strtotime($line['date'])); ?></td>
+                    <td><?php echo $line['uploadedby']; ?></td>
+                    <td>
+					<?php if ($acl->checkPermission('Folder', ACTION_VIEW) && $folder->getCreator()->canViewFilesAndFolders()) { ?>	
+                    	<a href="<?php echo $this->baseUrl('folder/view/id/'.encode($line['id'])); ?>" title="View Information"><img src="<?php echo $this->baseUrl("images/info.png"); ?>" /></a>&nbsp; 
+                    <?php } ?>
+                    <?php if ($acl->checkPermission('Folder', ACTION_EDIT) && $folder->getCreator()->canCreateFolders()) { ?>	 
+                    	<a href="<?php echo $this->baseUrl('folder/index/id/'.encode($line['id'])); ?>" title="Rename Folder"><img src="<?php echo $this->baseUrl("images/rename.png"); ?>" /></a>&nbsp; 
+                    <?php } ?>    
+                    <?php if ($acl->checkPermission('Folder', ACTION_DELETE) && $folder->getCreator()->canDeleteFolders()) { ?>                       
+                        <a href="<?php echo $this->baseUrl('folder/delete/id/'.encode($line['id']).'/parentpath/'.encode($path).'/'.SUCCESS_MESSAGE.'/folder_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("corporatefile/list/parentid/".$line['parentid']))); ?>" class="delete_folder" title="<?php echo $this->translate("folder_button_delete"); ?>"><img src="<?php echo $this->baseUrl("images/folder_delete.png"); ?>" /></a>&nbsp; 
+                    <?php } ?>                                
+                    </td>
+                 </tr>
+             <?php } }  ?>
+             <?php if($line['Type'] == 'File'){ 
+			 		$path = getAbsoluteFilePath($line['id']);
+					$totalfiles = $totalfiles+1;
+					
+					$linefile = new CorporateFile();
+					$linefile->populate($line['id']);
+					$linefile->setCreatedBy($userid);
+					// debugMessage($linefolder->toArray());
+					if($linefile->isAllowedToView()){
+						
+			 	?>	
+                 <tr>
+                    <td align="center"><input type="checkbox" name="check_<?php echo $line['id']; ?>" id="check_<?php echo $line['id']; ?>" class="itemselect" value="1" /></td>
+                    <td align="center">
+                    	<?php if(file_exists($images_root.$line['ext'].'.png')){ ?>
+	                    	<img src="<?php echo $this->baseUrl("images/".$line['ext'].".png"); ?>" />
+                        <?php } else { ?>
+                        	<img src="<?php echo $this->baseUrl("images/file.png"); ?>" />
+                        <?php } ?>
+                    </td>
+                    <td class="nowrapping">
+                    	<?php if(in_array($line['ext'], array('jpg','jpeg','png','gif','tiff'))){ ?>
+                    		<a href="<?php echo $this->baseUrl('corporatefile/browse/id/'.encode($line['id'])); ?>" title="View File" target="_blank"><?php echo $line['Name']; ?></a>
+                        <?php } else { ?>
+                        	<a href="<?php echo $this->baseUrl('download/file/name/'.encode($line['Name']).'/path/'.encode($path)); ?>" title="Download File" target="_blank"><?php echo $line['Name']; ?></a>
+                        <?php } ?>
+                        <span class="titletext"><?php echo $line['title']; ?></span>
+                    </td>
+                    <td><?php echo strtoupper($line['ext']); ?></td>
+                    <td><?php echo !isEmptyString($line['filesize']) ? formatBytes($line['filesize'], 0) : ''; ?></td>        
+                    <td><?php echo date('m/d/Y h:i A', strtotime($line['date'])); ?></td>
+                    <td><?php echo $line['uploadedby']; ?></td>
+                    <td>
+                    <?php if ($acl->checkPermission('Corporate File', ACTION_VIEW) && $folder->getCreator()->canViewFilesAndFolders()) { ?>	
+                        <a href="<?php echo $this->baseUrl('corporatefile/view/id/'.encode($line['id'])); ?>" title="View Information"><img src="<?php echo $this->baseUrl("images/info.png"); ?>" /></a>&nbsp; 
+                    <?php } ?>     
+                   	<?php if ($acl->checkPermission('Corporate File', ACTION_EDIT) && $folder->getCreator()->canUploadFiles()) { ?>     
+                    	<a href="<?php echo $this->baseUrl('corporatefile/index/id/'.encode($line['id'])); ?>" title="Rename File"><img src="<?php echo $this->baseUrl("images/rename.png"); ?>" /></a>&nbsp;
+                    <?php } ?>    
+                    <?php if ($acl->checkPermission('Corporate File', ACTION_DELETE) && $folder->getCreator()->canDeleteFiles()) { ?>                       
+                        <a href="<?php echo $this->baseUrl('corporatefile/delete/id/'.encode($line['id']).'/parentpath/'.encode($path).'/'.SUCCESS_MESSAGE.'/corporatefile_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("corporatefile/list/parentid/".$line['parentid']))); ?>" class="delete_file" title="<?php echo $this->translate("corporatefile_button_delete"); ?>"><img src="<?php echo $this->baseUrl("images/file_delete.png"); ?>" /></a>&nbsp; 
+                    <?php } ?>
+                    <?php if ($acl->checkPermission('Corporate File', ACTION_VIEW) && $folder->getCreator()->canViewFilesAndFolders()) { ?>	
+                        <a href="<?php echo $this->baseUrl('download/file/name/'.encode($line['Name']).'/path/'.encode($path)); ?>" title="Download File" target="_blank"><img src="<?php echo $this->baseUrl("images/download.png"); ?>" /></a>
+                    <?php } ?>    
+                    </td>
+                </tr>
+             <?php } } ?>
+	  	<?php } ?>
+    <?php }  ?>
+    </tbody>
+  </table>
+  <table class="list">
+  	<tr>
+    	<td width="70%"></td>
+        <td width="30%" style="text-align:right;">
+        <?php // show a message that there are no items to display
+			if (!$has_no_data) {
+		 ?>
+        	Viewing
+            <?php if($totalfolders != 0){ ?>
+            	<?php echo '- '.$totalfolders; ?>&nbsp; <?php echo $totalfolders == 1 ? 'Folder' : 'Folders'; ?>
+            <?php } ?>
+			<?php if($totalfiles != 0){ ?>
+            	<?php echo 'and '.$totalfiles; ?>&nbsp; <?php echo $totalfiles == 1 ? 'File' : 'Files'; ?>
+            <?php } ?>&nbsp;&nbsp;
+        <?php } ?>
+        </td>
+    </tr>
+  </table>  
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+<div class="hidden" id="deletedialog_file" title="<?php echo $this->translate('corporatefile_button_delete'); ?>?">
+    <span id="contents_file"><?php echo $this->translate('corporatefile_delete_confirmation'); ?></span>
+    <div id="wait_delete_file" class="hidden"><br />Deleting ...<br /><br />
+        Please Wait ..... <br /><br />
+        <img src="<?php echo $this->baseUrl("images/loading.gif"); ?>" /> 
+    </div>
+</div>
+<div class="hidden" id="deletedialog_folder" title="<?php echo $this->translate('folder_button_delete'); ?>?">
+    <span id="contents_folder"><?php echo $this->translate('folder_delete_confirmation'); ?></span>
+    <div id="wait_delete_folder" class="hidden"><br />Deleting ...<br /><br />
+        Please Wait ..... <br /><br />
+        <img src="<?php echo $this->baseUrl("images/loading.gif"); ?>" /> 
+    </div>
+</div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ldml>
+	<identity>
+		<version number="$Revision: 1.1 $"/>
+		<generation date="$Date: 2011/10/17 18:17:17 $"/>
+		<language type="zh"/>
+		<territory type="SG"/>
+	</identity>
+	<alias source="zh_Hans_SG" path="//ldml"/>
+</ldml>

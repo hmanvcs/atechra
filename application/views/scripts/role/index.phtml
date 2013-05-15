@@ -1,0 +1,163 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	#create object
+	$aclgroup = new AclGroup();
+	
+	$resourcelookuptype = new LookupType;
+	$resourcelookuptype->setName("ALL_RESOURCES");
+	$resourcearray = $resourcelookuptype->getOptionValuesFromQuery();
+	
+	$definedactions = ACL::getActions(); 
+	$title =  $this->translate("role_pagetitle_create");
+	$posturl = $this->baseUrl('role/create');
+	$submitlabel = $this->translate("role_button_save");	
+	
+	#get the action and id from the session
+	if(!isEmptyString($request->id)){
+		$aclgroup->populate(decode($request->id)); 
+		$title = $this->translate("role_pagetitle_edit");
+		$posturl = $this->baseUrl('role/edit');
+		$submitlabel = $this->translate("role_button_edit");
+	}
+	
+	$this->headTitle($title); 
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$aclgroup->processPost($session->getVar(FORM_VALUES));	
+	}
+?>
+<script>
+	$(document).ready(function(){
+		// validation code for the form
+		$("#aclgroupform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				name: "required",
+				description: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				name: "<?php echo $this->translate("role_name_error"); ?>",
+				description: "<?php echo $this->translate("role_description_error"); ?>"
+			}
+		});
+		
+		// handling of checkbox selections for the permissions
+		// bind the function for updating hidden fields when the respective checkboxes are selected
+		$("#permissions :checkbox").change(updatePermissionHiddenField); 
+														 
+		// function to update the value of hidden field when a permission checkbox is selected or unselected
+		function updatePermissionHiddenField() {
+			if (this.checked) {
+				$("#" + this.value).val("1");
+			} else {
+				$("#" + this.value).val("0");
+			} 
+		} 
+		
+		// functionality for the all permissions checkboxes
+		// change the odd rows to odd
+		$("input[name='allpermissionscheckbox']").click(function() {
+			
+			 if (this.checked) {
+				 $("." + this.value).attr('checked', true);
+
+			 } else {				 
+				$("." + this.value).attr('checked', false);
+			 }
+			 // trigger a change action on the checkboxes representing the permissions
+			 $("." + this.value).trigger("change");
+		});
+		
+		$("#permissions :checkbox").trigger("change"); 
+	}); 
+</script>
+<form id="aclgroupform" action="<?php echo $posturl; ?>" method="post">
+	<table class="formtable">
+		<thead>
+			<tr>
+				<td colspan="2"><?php echo $this->translate("role_section_general"); ?></td>
+			</tr>
+		</thead>
+		<?php if ($sessionhaserror) { ?>
+		<tr>
+			<td class="label">&nbsp;</td>
+			<td><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+		</tr>
+		<?php } ?>
+		<tr>
+			<td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+		</tr>
+		<tr>
+			<td class="label"><?php echo $this->translate("role_name_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+			<td><input type="text" name="name" id="name" value="<?php echo $aclgroup->getName(); ?>" /></td>
+		</tr>
+		<tr>
+			<td class="label"><?php echo $this->translate("role_description_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+			<td><textarea class="expanding" id="description" name="description"><?php echo $aclgroup->getDescription(); ?></textarea>
+		</td>
+		</tr>
+	</table>
+	<br />
+	<table class="formtable" id="permissions">
+		<caption>
+		<?php echo $this->translate("role_section_permissions"); ?>
+		</caption>
+		<thead>
+			<tr>
+				<td><?php echo $this->translate("role_resource_label"); ?></td>
+				<td><?php echo $this->translate("role_resource_all_label"); ?></td>
+						<?php foreach($definedactions as $value) { ?>
+							<td><?php echo ucfirst($value); ?></td>
+						<?php }  // end creating the header column for each action ?>
+			</tr>
+		</thead>
+		<tbody>
+			<?php 
+					foreach($resourcearray as $resourceid => $resourceName) {
+						// load the permission instance for the specified resource, since for each group and resource there is only one permission instance
+						$theresource = new AclResource();
+						$theresource->populate($resourceid);
+						//debugMessage($resource->toArray());
+						$permission = $aclgroup->getPermissionForResource($resourceid); 
+						$resource_ref = md5($resourceid); 
+                ?>
+			<tr>
+				<td class="label"><?php echo $resourceName; ?>
+					<input type="hidden" name="permissions[<?php echo $resource_ref; ?>][resourceid]" id="resourceid[]" value="<?php echo $resourceid; ?>" />
+					<input type="hidden" name="permissions[<?php echo $resource_ref; ?>][id]" value="<?php echo $permission->getID(); ?>" />
+					<input type="hidden" name="permissions[<?php echo $resource_ref; ?>][groupid]" value="<?php echo $aclgroup->getID(); ?>" /></td>
+				<td><input name="allpermissionscheckbox" type="checkbox" value="resource_<?php echo $resourceid; ?>" /></td>
+				<?php 
+                        foreach($definedactions as $theaction) {
+                    ?>
+				<td align="center"><?php if ($theresource->get($theaction) == 1) { ?>
+					<input type="checkbox" name="chk<?php echo $theaction; ?>[]" id="chk<?php echo $theaction; ?>_<?php echo $resourceid; ?>" value="<?php echo $theaction; ?>_<?php echo $resourceid; ?>" class="resource_<?php echo $resourceid; ?>" <?php echo $permission->getCheckedStatus($theaction); ?>  />
+					<input type="hidden" name="permissions[<?php echo $resource_ref; ?>][<?php echo $theaction; ?>]" id="<?php echo $theaction; ?>_<?php echo $resourceid; ?>" value="<?php echo $permission->checkPermissionForAction($theaction); ?> " />
+					<?php } ?></td>
+				<?php 
+                        } // end creating checkboxes for each available action
+                    ?>
+			</tr>
+			<?php 
+                	} // end creating a row for each resource
+                ?>
+		</tbody>
+		<tfoot>
+			<tr>
+				<td colspan="2">&nbsp;</td>
+				<td colspan="<?php echo count($definedactions);?>"><a href="<?php echo $this->baseUrl('role/list'); ?>" title="<?php echo $this->translate("global_button_cancel"); ?>"><?php echo $this->translate("global_button_cancel"); ?></a>&nbsp;&nbsp;
+					<button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $submitlabel; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" alt="<?php echo $submitlabel; ?>" />&nbsp;<?php echo $submitlabel; ?></button>
+					<input type="hidden" name="submit" id="submit" value="Submit" />
+					<input name="entityname" id="entityname" type="hidden" value="aclgroup" />
+					<input type="hidden" name="id" id="id" value="<?php echo encode($aclgroup->getID()); ?>" />
+					<input type="hidden" name="numberofresources" id="numberofresources" value="<?php echo count($resourcearray); ?>" /></td>
+			</tr>
+		</tfoot>
+	</table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

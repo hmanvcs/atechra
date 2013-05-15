@@ -1,0 +1,229 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$statusreport = new StatusReport(); 
+	
+	// set the emoloyeeid, should be overidden in case of admin editing or approval
+	$statusreport->setEmployeeID($userid);
+	// default title is to enable adding a new organisation
+	$title = $this->translate("statusreport_pagetitle_new"); 
+	$posturl = $this->baseUrl("statusreport/create");
+	$button_title = $this->translate("statusreport_button_new"); 
+	
+	# update the weekending date to use the week ending date of the timesheet
+	if (!isEmptyString($request->weekendingdate)) {
+		$statusreport->setWeekendingDate($request->weekendingdate);
+		$statusreport->setEmployeeID(decode($request->employeeid)); 
+		$statusreport->setProjectID($request->projectid); 
+		$statusreport->populateFromEmployeeIDAndWeekendingDate(); 
+	}
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$statusreport->populate(decode($request->id));
+		$title = sprintf($this->translate("statusreport_pagetitle_edit")); 
+		$button_title = $this->translate("statusreport_button_edit");
+		$posturl = $this->baseUrl("statusreport/edit"); 
+	} 
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$statusreport->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+	
+	// get all projects currently assigned to the employee
+	$employee_project_assignments_query = "SELECT p.title as optiontext, p.id as optionvalue FROM project AS p INNER JOIN projectassignment AS pa ON p.id = pa.projectid WHERE pa.employeeid = '".$statusreport->getEmployeeID()."'";
+?>
+<script>
+	$(document).ready(function() {
+		// Save the content from the Tiny MCE editor control into the text area before validation
+		$('#submitforapproval').click(function() {
+    		tinyMCE.triggerSave();
+			// set the status to 1 which is Submitted
+			$("#status").val(1);
+			// then submit the form
+			$('#statusreportform').submit();
+		});
+		$('#save').click(function() {
+    		tinyMCE.triggerSave();
+			// set the status to 0 which is saved
+			$("#status").val(0);
+			// then submit the form
+			$('#statusreportform').submit();
+		});
+		
+		// reload the page to the new week ending date 
+		$("#weekendingdate").change(function(){
+			var selecteddate =  $("#weekendingdate").val();
+			var current_projectid =  $("#projectid").val();
+			//alert("Selected date: " + selecteddate);
+			// set the default dialog options
+			$("#confirmdialog").dialog(dialogOpts);
+			// add the dialog buttons 
+			$("#confirmdialog").dialog('option', 'buttons', {
+				 " Yes " : function() {
+					  			$(window.location).attr('href', "<?php echo $this->baseUrl('statusreport/index/employeeid/'.encode($statusreport->getEmployeeID()).'/weekendingdate/'); ?>" + selecteddate + '/projectid/' + current_projectid);	
+					  },
+				 " No " : function() {
+								 $("#weekendingdate").val($("#previousdate").val());
+								 // update the chosen list for week ending date
+								 $("#weekendingdate").trigger("liszt:updated");
+								 $(this).dialog("close");
+					  }
+			});
+			// open the dialog 
+			$('#confirmdialog').dialog('open').height('auto');
+		});
+		
+		$("#statusreportform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				projectid: "required",
+				weekendingdate: "required",
+				activities: "required",
+				accomplishments: "required",
+				meetingsandpresentations: "required",
+				issues: "required",
+				itemsforcotr: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				projectid: "<?php echo $this->translate("statusreport_project_error"); ?>",
+				weekendingdate: "<?php echo $this->translate("statusreport_weekendingdate_error"); ?>",
+				activities: "<?php echo $this->translate("statusreport_activities_error"); ?>",
+				accomplishments: "<?php echo $this->translate("statusreport_accomplishments_error"); ?>",
+				meetingsandpresentations: "<?php echo $this->translate("statusreport_meetingsandpresentations_error"); ?>",
+				issues: "<?php echo $this->translate("statusreport_issues_error"); ?>",
+				itemsforcotr: "<?php echo $this->translate("statusreport_itemsforcotr_error"); ?>"
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				if (element.attr("id") == "weekendingdate"){ 
+					error.appendTo("#weekendingdate_error");
+				} else if (element.attr("id") == "projectid"){ 
+					error.appendTo("#projectid_error");
+				} else if (element.attr("id") == "activities"){ 
+					error.appendTo("#activities_error");
+				} else if (element.attr("id") == "accomplishments"){ 
+					error.appendTo("#accomplishments_error");
+				} else if (element.attr("id") == "meetingsandpresentations"){ 
+					error.appendTo("#meetingsandpresentations_error");
+				} else if (element.attr("id") == "issues"){ 
+					error.appendTo("#issues_error");
+				} else if (element.attr("id") == "itemsforcotr"){ 
+					error.appendTo("#itemsforcotr_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+		
+		// get an array of all projects and clients
+		var projects = new Array();
+		<?php $allprojectsandclients = $statusreport->getAllProjectsAndClientsArray();
+		foreach ($allprojectsandclients as $project){ ?>
+			projects[<?php echo $project['id'] ?>] = <?php echo $project['clientid'] ?>;
+		<?php } ?>
+		
+		// update the client id in the hidden field
+		$('#projectid').change(function(e){
+			var projectid = $("#projectid").val();
+			$("#clientid").val(projects[projectid]);		
+		});
+	}); 
+</script>
+<style>
+.expanding {
+	width: 400px;
+}
+</style>
+<div id="confirmdialog" class="hidden" title="Confirm change of Weekending Date">Please note changing the week ending date will reload the page, you will lose any data that you may have entered. Are sure you want to change it?</div>
+<form id="statusreportform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_project_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $projectlookup = new LookupType(); 				
+                $projectlookup->setName("ALL_PROJECTS");				
+                $projectdropdown = new Zend_Form_Element_Select('projectid',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getOptionValuesFromDatabaseQuery($employee_project_assignments_query)),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $projectdropdown->setValue($statusreport->getProjectID());
+                echo $projectdropdown->render(); 
+        ?><div id="projectid_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_weekendingdate_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php			
+			$cb = new Zend_Form_Element_Select('weekendingdate',
+						array(
+							'multiOptions' => getWeekendingDates(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('chzn-select')
+						)
+			);
+			$cb->setValue(date($config->dateandtime->mediumformat, strtotime($statusreport->getWeekendingDate()))); 
+			echo $cb->render();	
+		?><input type="hidden" name="previousdate" id="previousdate" value="<?php echo date($config->dateandtime->mediumformat, strtotime($statusreport->getWeekendingDate())); ?>" />
+      <div id="weekendingdate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_activities_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="htmleditor" name="activities" id="activities"><?php echo $statusreport->getActivities(); ?></textarea><div id="activities_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_accomplishments_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="htmleditor" name="accomplishments" id="accomplishments"><?php echo $statusreport->getAccomplishments(); ?></textarea><div id="accomplishments_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_meetingsandpresentations_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="htmleditor" name="meetingsandpresentations" id="meetingsandpresentations"><?php echo $statusreport->getMeetingsAndPresentations(); ?></textarea><div id="meetingsandpresentations_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_issues_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="htmleditor" name="issues" id="issues"><?php echo $statusreport->getIssues(); ?></textarea><div id="issues_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("statusreport_itemsforcotr_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="htmleditor" name="itemsforcotr" id="itemsforcotr"><?php echo $statusreport->getItemsForCotr(); ?></textarea><div id="itemsforcotr_error"></div></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("statusreport/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="button" class="positiveaction" id="save" name="saveforlater" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <button type="button" class="positiveaction" id="submitforapproval" name="submitforapproval" title="<?php echo $this->translate('statusreport_button_submitforapproval'); ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $this->translate('statusreport_button_submitforapproval'); ?></button>
+          <input type="hidden" name="entityname" value="StatusReport" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($statusreport->getID()); ?>" />
+          <input type="hidden" name="status" id="status" value="<?php echo $statusreport->getStatus(); ?>" />
+          <input type="hidden" id="employeeid" name="employeeid" value="<?php echo $statusreport->getEmployeeID(); ?>" />
+          <input type="hidden" id="clientid" name="clientid" value="<?php echo $statusreport->getClientID(); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

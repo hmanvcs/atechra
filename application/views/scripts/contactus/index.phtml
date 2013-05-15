@@ -1,0 +1,74 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = "Support";
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+?>
+<h1><?php echo $title; ?></h1>
+<script>
+	$(document).ready(function(){
+		// validation code for the form
+		$("#contactusform").validate({
+			// define the validation rules one field at a time
+			rules: {
+				topic: "required",
+				names: "required",
+				youremail: {
+					required: true,
+					email: true
+				},
+				message: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {
+				topic: "Please select a Subject",
+				names: "Please enter your Names",	
+				youremail: "Please enter a valid email address",
+				message: "Please enter your message"
+			}
+		}); 
+	}); 
+</script>
+<form id="contactusform" action="<?php echo $this->baseUrl("contactus/confirmation"); ?>" method="post">
+  <table class="formtable">
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label">Subject:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%"><select name="topic" id="topic">
+          <option value="">&lt;Select One&gt;</option>
+          <option value="Sign up Problems">Sign up Problems</option>
+          <option value="Other">Other</option>
+        </select></td>
+    </tr>
+    <tr>
+      <td  class="label">Your Names:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" class="inputfield" name="names" id="names" /></td>
+    </tr>
+    <tr>
+      <td  class="label">Your Email:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text"  class="inputfield" name="youremail" id="youremail" /></td>
+    </tr>
+    <tr>
+      <td  class="label">Message:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea id="message" name="message" rows=7 wrap=virtual cols="29"></textarea></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><input type="text" value="" name="checkvalue" id="checkvalue" class="hidden" />
+        <button class="negativeaction" type="reset"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate('global_button_cancel'); ?></button>
+        &nbsp;&nbsp;
+        <button class="positiveaction" type="submit"><img src="<?php echo $this->baseUrl('images/email.png'); ?>" /><?php echo $this->translate('global_button_submit'); ?></button></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><?php echo $this->translate('companyname'); ?><br />
+        Phone: TBD<br />
+    </tr>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

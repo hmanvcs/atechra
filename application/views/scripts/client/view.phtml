@@ -1,0 +1,91 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$client = new Client();
+	$client->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("client_pagetitle_view"); 
+	$this->headTitle($title); 
+	  
+?>
+
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_name_label"); ?>:</td>
+    <td><?php echo $client->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_address_label"); ?>:</td>
+    <td><?php echo $client->getAddress(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_city_label"); ?>:</td>
+    <td><?php echo $client->getCity(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_state_label"); ?>:</td>
+    <td><?php echo $client->getStateLongName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_zipcode_label"); ?>:</td>
+    <td><?php echo $client->getZipCode(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_phonenumber_label"); ?>:</td>
+    <td><?php echo $client->getPhoneNumber(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_fax_label"); ?>:</td>
+    <td><?php echo $client->getFax(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_email_label"); ?>:</td>
+    <td><?php echo $client->getEmail(); ?></td>
+  </tr>
+  <?php $emailaddress_count = $client->getEmailAddresses()->count(); 
+  	if($emailaddress_count > 0) {
+		$counter = 1;
+		for($i=0; $i < $emailaddress_count; $i++){	
+	  	$theemailaddress = $client->getEmailAddresses()->get($i);	
+  ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_alt_email_label"); ?> <?php echo $counter; ?>:</td>
+    <td><?php echo $theemailaddress->getEmailAddress(); ?></td>
+  </tr>
+  <?php $counter++;
+  		} // end for loop
+   } // end if statement to check if there are additional email addresses ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("client_contactperson_label"); ?>:</td>
+    <td><?php echo $client->getContactPerson(); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td>&nbsp;</td>
+      <td><?php if ($acl->checkPermission('Client', ACTION_DELETE)) { ?>
+        <a href="<?php echo $this->baseUrl('client/delete/entityname/Client/id/'.encode($client->getID()).'/'.SUCCESS_MESSAGE.'/client has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("client/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("client_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("client_button_delete"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Client', ACTION_EDIT)) { ?>
+        <a href="<?php echo $this->baseUrl('client/index/id/'.encode($client->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("client_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("client_button_edit"); ?></a>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Client', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('client/list'); ?>" class="positiveaction" title="<?php echo $this->translate("client_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("client_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

@@ -1,0 +1,46 @@
+<?php 
+// remove any query items with empty values 
+$url_options = array_remove_empty(Zend_Controller_Front::getInstance()->getRequest()->getQuery()); 
+
+if (count($this->pagesInRange) > 1) {
+	if ($this->pageCount): ?>
+	    <div class="pager">
+	        <div class="pager-outer">
+	            <div class="pager-inner">
+	                <!-- Previous page link -->
+	                <?php if (isset($this->previous)): 
+	                	?>
+	                  <a href="<?php echo $this->url(array_merge_maintain_keys($url_options, array('page' => $this->previous)), 'default', false); ?>" class="page-mover">
+	                    &lt; Prev
+	                  </a>
+	                <?php endif; ?>
+	                <?php //Now put the first page link
+	                if($this->current > 1 && $this->firstPageInRange > 1){ ?>
+	                    <a href="<?php echo $this->url(array_merge_maintain_keys($url_options, array('page' => 1)), 'default', false); ?>" class="page-mover page-mover-numeric"><?php echo Zend_Locale_Format::toNumber(1)?></a> ..
+	                <?php } ?>
+	                <!-- Numbered page links -->
+	                <?php foreach ($this->pagesInRange as $page): ?>
+	                  <?php if ($page != $this->current): ?>
+	                    <a href="<?php echo $this->url(array_merge_maintain_keys($url_options, array('page' => $page)), 'default', false); ?>" class="page-mover-numeric page-mover">
+	                        <?php echo Zend_Locale_Format::toNumber($page); ?>
+	                    </a>
+	                  <?php else: ?>
+	                    <span class="page-mover-numeric pave-mover page-mover-current"><?php echo Zend_Locale_Format::toNumber($page); ?></span>
+	                  <?php endif; ?>
+	                <?php endforeach; ?>
+	                <?php //Now put the last page link
+	                if($this->current != $this->last && $this->last > $this->lastPageInRange){ ?>
+	                    .. <a href="<?php echo $this->url(array_merge_maintain_keys($url_options, array('page' => $this->last)), 'default', false); ?>" class="page-mover-numeric"><?php echo Zend_Locale_Format::toNumber($this->last); ?></a>
+	                <?php } ?>
+	                <!-- Next page link -->
+	                <?php if (isset($this->next)): ?>
+	                  <a href="<?php echo $this->url(array_merge_maintain_keys($url_options, array('page' => $this->next)), 'default', false); ?>" class="page-mover">
+	                    Next &gt;
+	                  </a>
+	                <?php endif; ?>
+	            </div>
+	        </div>
+	    </div>
+	<?php endif; 
+} // end check that there is more than one page 
+?>

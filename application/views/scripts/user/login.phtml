@@ -1,0 +1,108 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$formvalues = $session->getVar(FORM_VALUES);
+	$title = sprintf($this->translate("useraccount_pagetitle_login"), $this->translate('appname'));
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title);  
+?>
+<script>
+$(document).ready(function() {
+		$("#email").focus();
+		$("#loginform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				email: {
+					"required": true,
+					"email": true
+				},
+				password: "required"
+			}, 
+			messages: {
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>",
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},
+				password: "<?php echo $this->translate("useraccount_password_error"); ?>"
+			}
+		}); 
+}); 
+</script>
+<style>
+#mainmenu, .submenu, #header #toplinks, #rightcolumn {
+	display:none;
+}
+#contentcolumn {
+	background-color: transparent;
+	border:none;
+	height:250px;
+	width:100%;
+	margin:40px 0 20px 0;
+ *margin-top:82px;
+	padding-top:5px;
+	padding-bottom:40px;
+}
+h2 {
+	border-bottom: 1px solid #DDDDDD;
+	margin-bottom:15px;
+	font-size:14px;
+}
+table.formtable, table.formtable td {
+	border:none;
+}
+table.formtable td.loginlabel {
+	margin-top: 10px;
+}
+table.formtable {
+	border:1px solid #DBD9E4;
+	margin-left: 246px;
+	margin-top:0;
+	width:450px;
+ *width:450px;
+	background-color: #FFF;
+}
+td.loginlabel {
+	vertical-align:middle;
+	text-align: right;
+	white-space: nowrap;
+	font-weight:bold;
+	color:#777777;
+}
+#email, #password {
+	width: 240px;
+}
+</style>
+<form id="loginform" action="<?php echo $this->baseUrl('user/checklogin'); ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2">Login to your account</td>
+      </tr>
+    </thead>
+    <?php if($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr class="tablespacer">
+      <td class="loginlabel"><?php echo $this->translate("useraccount_email_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?><br /></td>
+      <td><input name="email" id="email" title="Enter your Email Address" /></td>
+    </tr>
+    <tr>
+      <td class="loginlabel"><?php echo $this->translate("useraccount_password_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input name="password" id="password" type="password" title="Enter a password with at least 6 characters" /></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><button id="login" class="positiveaction" type="submit"><img src="<?php echo $this->baseUrl('images/login.png'); ?>" alt="Login" />Login</button>
+        <input name="redirecturl" type="hidden" value="<?php echo $request->redirecturl;  ?>" /></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td nowrap><a href="<?php echo $this->baseUrl("user/recoverpassword")?>">Forgot your password?</a></td>
+    </tr>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

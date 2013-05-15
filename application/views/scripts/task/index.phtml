@@ -1,0 +1,193 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$task = new Task(); 
+	
+	// default title is to enable adding new task
+	$title = $this->translate("task_pagetitle_new"); 
+	$posturl = $this->baseUrl("task/create");
+	$button_title = $this->translate("task_button_new"); 
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$task->populate(decode($request->id));
+		$title = sprintf($this->translate("task_pagetitle_edit")); 
+		$button_title = $this->translate("task_button_edit");
+		$posturl = $this->baseUrl("task/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$task->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+	
+	$lookupemployees = new LookupType();
+	$lookupemployees->setName("ALL_USERS"); 
+
+?>
+<script>
+	$(document).ready(function() {
+		// configure the date pickers
+		var duedateOpts = datepickerOpts;
+		duedateOpts.minDate = new Date(); 
+		$("#duedate").datepicker(duedateOpts); 
+		
+		var dateclosedOpts = datepickerOpts;
+		dateclosedOpts.minDate = new Date(); 
+		$("#dateclosed").datepicker(dateclosedOpts); 
+		
+		$("#taskform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				projectid: "required",
+				name: "required",
+				duedate: "required",
+				status: "required",
+				"task_assigneeid[]": {
+					"required": true,
+					"minlength": 1
+				} 
+			}, 
+			// the messages for each of the fields being validated
+			messages: {
+				projectid: "<?php echo $this->translate("task_project_error"); ?>",
+				name: "<?php echo $this->translate("task_name_error"); ?>",
+				duedate: "<?php echo $this->translate("task_duedate_error"); ?>",
+				status: "<?php echo $this->translate("task_status_error"); ?>",
+				"task_assigneeid[]": "<?php echo $this->translate("task_assignee_error"); ?>"
+				
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				if (element.attr("id") == "startdate"){ 
+					error.appendTo("#startdate_error");
+				} else if (element.attr("id") == "enddate"){ 
+					error.appendTo("#enddate_error");
+				} else if (element.attr("id") == "employeeid"){ 
+					error.appendTo("#employeeid_error");
+				} else if (element.attr("id") == "projectid"){ 
+					error.appendTo("#projectid_error");
+				} else if (element.attr("id") == "status"){ 
+					error.appendTo("#status_error");
+				} else if (element.attr("name") == "task_assigneeid[]"){ 
+					error.appendTo("#task_assignee_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+		// set the date closed when the status is changed to completed
+		$("#status").change(function(){
+			// check that the task is completed
+			if ($("#status").val() == 3) {
+				//alert($("#status").val());
+				//formatteddate2 = $.datepicker.formatDate('m/dd/yy', new Date());
+				//alert(formatteddate2);
+				$("#dateclosed").val($.datepicker.formatDate('mm/dd/yy', new Date()));
+			}
+		});
+	}); 
+</script>
+
+<form id="taskform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_project_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $projectlookup = new LookupType(); 				
+                $projectlookup->setName("BILLABLE_PROJECTS");				
+                $projectdropdown = new Zend_Form_Element_Select('projectid',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $projectlookup->getOptionValuesFromQuery()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $projectdropdown->setValue($task->getProjectID());
+                echo $projectdropdown->render(); 
+        ?>
+        <div id="projectid_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $task->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_status_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $statuslookup = new LookupType(); 				
+                $statuslookup->setName("TASK_STATUS");				
+                $statusdropdown = new Zend_Form_Element_Select('status',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $statuslookup->getOptionValuesAndDescription()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $statusdropdown->setValue($task->getStatus());
+                echo $statusdropdown->render(); 
+        ?>
+        <div id="status_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_duedate_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" class="datefield duedate" name="duedate" id="duedate" value="<?php echo changeMySQLDateToPageFormat($task->getDueDate()); ?>" />
+        <div id="duedate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_dateclosed_label"); ?></td>
+      <td><input type="text" class="datefield dateclosed" name="dateclosed" id="dateclosed" value="<?php echo changeMySQLDateToPageFormat($task->getDateClosed()); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_assignee_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php 	
+    		$cb = new Zend_Form_Element_MultiCheckbox('task_assigneeid',
+    					array(
+							'multiOptions' => $lookupemployees->getOptionValuesFromQuery(), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper')
+						)
+    				);
+    		$cb->setValue($task->getAssineeIDs()); 
+			$cb->setSeparator('<br />');  
+    		echo $cb->render();	
+    	?>
+        <div id="task_assignee_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("task_notes_label"); ?>:</td>
+      <td><textarea class="expanding" name="notes" id="notes"><?php echo $task->getNotes(); ?></textarea></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("task/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Task" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($task->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

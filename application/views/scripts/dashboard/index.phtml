@@ -1,0 +1,101 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+		
+	$title = $this->translate("dashboard_pagetitle");
+	// meta data
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+	
+	$current_user_filter = ""; 
+	
+	if (!$acl->checkPermission('Timesheet', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's timesheet
+		$current_user_filter = " WHERE employeeid = '".$userid."' ";
+	}
+	$conn = Doctrine_Manager::connection();  
+	$alltimesheetsquery = "SELECT SUM(IF(`status` = '0', 1, 0)) as `Currently Saved`, SUM(IF(`status` = '1', 1, 0)) as `Submitted For Approval`, SUM(IF(((DAY(datecreated) = DAY(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted Today`, SUM(IF(((WEEK(weekendingdate) = WEEK(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted This Week`, SUM(IF(((MONTH(weekendingdate) = MONTH(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted This Month`, SUM(IF(((MONTH(weekendingdate) = MONTH(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '2')), 1, 0)) AS `Approved This Month` FROM timesheet AS t".$current_user_filter;
+	//debugMessage($alltimesheetsquery);
+	$alltimesheetsquery_result = $conn->fetchRow($alltimesheetsquery);
+	//debugMessage($alltimesheetsquery_result);
+	
+	if (!$acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's timesheet
+		$current_user_filter = " WHERE employeeid = '".$userid."' ";
+	}
+	$allstatusreportsquery = "SELECT SUM(IF(`status` = '0', 1, 0)) as `Currently Saved`, SUM(IF(`status` = '1', 1, 0)) as `Submitted For Approval`, SUM(IF(((DAY(datecreated) = DAY(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted Today`, SUM(IF(((WEEK(weekendingdate) = WEEK(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted This Week`, SUM(IF(((MONTH(weekendingdate) = MONTH(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '1')), 1, 0)) AS `Submitted This Month`, SUM(IF(((MONTH(weekendingdate) = MONTH(NOW())) AND (YEAR(weekendingdate) = YEAR(NOW())) AND (`status` = '2')), 1, 0)) AS `Approved This Month` FROM statusreport AS sr".$current_user_filter;
+	//debugMessage($allstatusreportsquery);
+	$allstatusreportsquery_result = $conn->fetchRow($allstatusreportsquery);
+	//debugMessage($allstatusreportsquery_result);
+	
+	if (!$acl->checkPermission('Vacation', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's timesheet
+		$current_user_filter = " WHERE employeeid = '".$userid."' ";
+	}
+	$allvacationrequestsquery = "SELECT Sum(IF(`status` = '0',1,0)) AS `Currently Saved`, Sum(IF(`status` = '1',1,0)) AS `Submitted For Approval`, Sum(IF(((MONTH(datecreated) = MONTH(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '1')),1,0)) AS `Submitted Today`, Sum(IF(((WEEK(datecreated) = WEEK(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '1')),1,0)) AS `Submitted This Week`, Sum(IF(((MONTH(datecreated) = MONTH(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '1')),1,0)) AS `Submitted This Month`, Sum(IF(((MONTH(datecreated) = MONTH(NOW())) AND (YEAR(datecreated) = YEAR(NOW())) AND (`status` = '2')),1,0)) AS `Approved This Month` FROM vacation AS v".$current_user_filter;
+	//debugMessage($allvacationrequestsquery);
+	$allvacationrequestsquery_result = $conn->fetchRow($allvacationrequestsquery);
+	//debugMessage($allvacationrequestsquery_result);
+	
+	if (!$acl->checkPermission('Task', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's timesheet
+		$current_user_filter = "";
+		//$current_user_filter = " WHERE employeeid = '".$userid."' ";
+	}
+	$alltasksquery = "SELECT Sum(IF(((DAY(duedate) = DAY(NOW())) AND (YEAR(duedate) = YEAR(NOW()))),1,0)) AS `Due Today`, Sum(IF(((WEEK(duedate) = WEEK(NOW())) AND (YEAR(duedate) = YEAR(NOW()))),1,0)) AS `Due This Week`, Sum(IF(((MONTH(duedate) = MONTH(NOW())) AND (YEAR(duedate) = YEAR(NOW()))),1,0)) AS `Due This Month` FROM task AS t".$current_user_filter;
+	//debugMessage($alltasksquery);
+	$alltasksquery_result = $conn->fetchRow($alltasksquery);
+	//debugMessage($alltasksquery_result);
+	
+?>
+<style type="text/css">
+#contentcolumn h2 {
+	font-size: 14px;
+	margin-bottom: 0;
+	margin-top: 0;
+	padding: 10px;
+}
+	
+</style>
+<h1><?php echo $title; ?></h1>
+Dashboard for <?php echo $session->getVar('firstname')." ".$session->getVar('lastname'); ?><br />
+<br />
+<?php if ($acl->checkPermission('Timesheet', ACTION_LIST)) { ?>
+<dl class="widget" id="timesheetsummary">
+  <h2>All Timesheets</h2>
+  <?php foreach($alltimesheetsquery_result as $key=>$value){ ?>
+  <dt><?php echo $key; ?>
+  <dd><?php echo intval($value); ?>
+    <?php } ?>
+</dl>
+<?php } ?>
+<?php if ($acl->checkPermission('Status Report', ACTION_LIST)) { ?>
+<dl class="widget" id="statusreportssummary">
+  <h2>All Status Reports</h2>
+  <?php foreach($allstatusreportsquery_result as $key=>$value){ ?>
+  <dt><?php echo $key; ?>
+  <dd><?php echo intval($value); ?>
+    <?php } ?>
+</dl>
+<?php } ?>
+<?php if ($acl->checkPermission('Vacation', ACTION_LIST)) { ?>
+<dl class="widget" id="vacationrequestssummary">
+  <h2>All Vacation/Sick Time Requests</h2>
+  <?php foreach($allvacationrequestsquery_result as $key=>$value){ ?>
+  <dt><?php echo $key; ?>
+  <dd><?php echo intval($value); ?>
+    <?php } ?>
+</dl>
+<?php } ?>
+<?php if ($acl->checkPermission('Task', ACTION_LIST)) { ?>
+<dl class="widget" id="taskssummary">
+  <h2>All Tasks</h2>
+  <?php foreach($alltasksquery_result as $key=>$value){ ?>
+  <dt><?php echo $key; ?>
+  <dd><?php echo intval($value); ?>
+    <?php } ?>
+</dl>
+<?php } ?>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

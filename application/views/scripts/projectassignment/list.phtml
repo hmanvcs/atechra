@@ -1,0 +1,185 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate('projectassignment_pagetitle_list');
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("u.firstname", "u.lastname", "p.title"));
+	$paginate->setFilterColumns(array("pa.employeeid", "pa.projectid", "pa.clientid"));
+	$paginate->setDefaultSortBy("u.firstname");	
+	$paginate->setDefaultSortOrder("ASC");
+
+	$paginate->processPost($request->getParams());
+	
+	$current_user_filter = ""; 
+	
+	if (!$acl->checkPermission('Project Assignment', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's PTO 
+		$current_user_filter = " AND pa.employeeid = '".$userid."' ";
+	}
+	$all_results_query = "SELECT pa.id, pa.employeeid, pa.projectid, pa.clientid, CONCAT(u.firstname, ' ', u.lastname) AS `Employee`, p.title AS `Project`, p.jobnumber AS `Job Number`, lv.lookupvaluedescription as `Type`,  c.`name` AS Client FROM projectassignment AS pa INNER JOIN client AS c ON pa.clientid = c.id INNER JOIN project AS p ON pa.projectid = p.id INNER JOIN useraccount AS u ON pa.employeeid = u.id INNER JOIN lookuptypevalue AS lv ON (p.`type` = lv.lookuptypevalue AND lv.lookuptypeid = 5) WHERE p.id <> '' ".$current_user_filter.$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 4;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<style></style>
+<form action="<?php echo $this->baseUrl("projectassignment/listsearch"); ?>" method="get" id="projectassignmentform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td><?php			
+                        $clientlookup = new LookupType(); 
+                        
+								$clientlookup->setName("ALL_CLIENTS");		
+								 $values = $clientlookup->getOptionValuesFromQuery(); 
+								 
+								 if (!$acl->checkPermission('Project Assignment', ACTION_ACCOUNT_LIST)) {
+									 // show only the projects assigned to the employee
+									 $values = getClientsForProjectAssignments($userid); 
+								 } 
+                        $clientdropdown = new Zend_Form_Element_Select('pa'.HTML_TABLE_COLUMN_SEPARATOR.'clientid',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('projectassignment_list_filter_client')), $values), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper'),
+										'class' => array('chzn-select')
+                                    )
+                        );
+                        $clientdropdown->setValue($request->getParam('pa'.HTML_TABLE_COLUMN_SEPARATOR.'clientid')); 
+                        echo $clientdropdown->render();	
+                    ?></td>
+            <td><?php 	
+								$projectslookup = new LookupType();
+								$projectslookup->setName("ALL_PROJECTS");
+								
+								 $values = $projectslookup->getOptionValuesFromQuery(); 
+														 
+								 if (!$acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) {
+									 // show only the projects assigned to the employee
+									 $values = getProjectAssignments($userid); 
+								 }  
+								$projectdropdown = new Zend_Form_Element_Select('pa'.HTML_TABLE_COLUMN_SEPARATOR.'projectid',
+											array(
+												'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('projectassignment_list_filter_project')), $values), 
+												'view' => new Zend_View(),
+												'decorators' => array('ViewHelper'),
+												'class' => array('chzn-select')
+											)
+										);
+								$projectdropdown->setValue($request->getParam('pa'.HTML_TABLE_COLUMN_SEPARATOR.'projectid')); 
+								echo $projectdropdown->render();	
+    	?></td>
+          </tr>
+			  <?php if ($acl->checkPermission('Project Assignment', ACTION_ACCOUNT_LIST)) { ?>
+          <tr>
+            <td><?php 	
+			$employeelookup = new LookupType();
+			$employeelookup->setName("ALL_USERS"); 
+			$employeedropdown = new Zend_Form_Element_Select('pa'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid',
+    					array(
+							'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('projectassignment_list_filter_employee')), $employeelookup->getOptionValuesFromQuery()), 
+							'view' => new Zend_View(),
+							'decorators' => array('ViewHelper'),
+							'class' => array('chzn-select')
+						)
+    				);
+    		$employeedropdown->setValue($request->getParam('pa'.HTML_TABLE_COLUMN_SEPARATOR.'employeeid')); 
+    		echo $employeedropdown->render();	
+    	?></td>
+          </tr>
+			 <?php } ?>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="informationmessage"><?php echo $this->translate('projectassignment_list_norecords'); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("projectassignment_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Client', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table class="list">
+    <caption>
+    <?php echo $title; ?>
+    </caption>
+    <thead>
+      <tr>
+        <?php if ($acl->checkPermission('Project Assignment', ACTION_EDIT)) { ?>
+        <td><?php echo $this->translate('global_list_action_edit'); ?></td>
+        <?php }?>
+		  <?php if ($acl->checkPermission('Project Assignment', ACTION_ACCOUNT_LIST)) { ?>
+        <td><?php echo $paginate->getSortLinkForColumn('u.firstname', $this->translate("projectassignment_employee_label")); ?></td>
+		  <?php } ?>
+        <td><?php echo $paginate->getSortLinkForColumn('p.title', $this->translate("projectassignment_project_label")); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('p.jobnumber', $this->translate('project_jobnumber_label')); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('p.type', $this->translate('project_type_label')); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('c.name', $this->translate("projectassignment_client_label")); ?></td>
+      </tr>
+    </thead>
+    <tbody>
+      <?php 				  		
+			foreach($result as $line){							
+		?>
+      <tr>
+        <?php if ($acl->checkPermission('Project Assignment', ACTION_EDIT)) { ?>
+        <td align="center"><a href="<?php echo $this->baseUrl("profile/index/id/".encode($line['employeeid'])."#projectassignment"); ?>" title="<?php echo $this->translate("projectassignment_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="<?php echo $this->translate("projectassignment_button_edit"); ?>" /></a></td>
+        <?php }?>
+		   <?php if ($acl->checkPermission('Project Assignment', ACTION_ACCOUNT_LIST)) { ?>
+        <td><a href="<?php echo $this->baseUrl("profile/view/id/".encode($line['employeeid'])."#projectassignment"); ?>" title="<?php echo $this->translate("projectassignment_button_view"); ?>"><?php echo $line['Employee']; ?></a></td>
+		  <?php } ?>
+        <td><a href="<?php echo $this->baseUrl("project/view/id/".encode($line['projectid'])); ?>" title="<?php echo $this->translate("project_button_view"); ?>"><?php echo $line['Project']?></a></td>
+         <td><?php echo $line['Job Number']; ?></td>
+        <td><?php echo $line['Type']; ?></td>
+        <td><a href="<?php echo $this->baseUrl("client/view/id/".encode($line['clientid'])); ?>" title="<?php echo $this->translate("client_button_view"); ?>"><?php echo $line['Client']?></a></td>
+      </tr>
+      <?php 						
+			} // end processing results 
+		?>
+    </tbody>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

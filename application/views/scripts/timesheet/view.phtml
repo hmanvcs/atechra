@@ -1,0 +1,191 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$timesheet = new Timesheet(); 
+	$timesheet->populate(decode($request->id));
+	
+	// default title
+	$title = $this->translate("timesheet_pagetitle_view"); 
+	$this->headTitle($title); 
+	 
+    # load the employee details for the timesheet
+	$employeeprojectassignments = $timesheet->getEmployeeProjectAssignments();
+	
+	$timesheetdetailsarray = $timesheet->getTimesheetDetailsDataArray();
+?>
+<script>
+			$(document).ready(function(){
+				// approve dialog boxes
+				$("#deletedialog, #approvedialog, #dialog").dialog({
+							resizable: false,
+							height:140,
+							width:450,
+							modal: true,
+							autoOpen: false
+				});
+				$(".approve" ).click(function(e) {
+					  e.preventDefault();
+					  var theHREF = $(this).attr("href");
+					  
+					  $("#approvedialog").dialog('option', 'buttons', {
+							 "Approve" : function() {
+								  		window.location.href = theHREF;
+								  },
+							 "Cancel" : function() {
+								  		$(this).dialog("close");
+								  }
+						});
+						
+						// open the dialog
+						$("#approvedialog").dialog("open");
+				}); // close the approve dialog functionality 
+				$(".reject" ).click(function(e) {
+					  e.preventDefault();
+					  var url = $(this).attr('href');	
+					  $("#dialog").dialog('option', 'title', $(this).attr('title')); 
+					  // load the please wait contents 
+					  $("#dialog").html($("#dialog_contents").html()); 
+						//display the dialog content
+						$("#dialog").load(url);
+						// open the dialog
+						$("#dialog").dialog("open").height('auto');
+					}); // close the reject dialog functionlaity 
+					
+				// Confirm that the user wants to delete the timesheet
+				$(".delete").click(function(e){
+					e.preventDefault();
+					var theHREF = $(this).attr("href");
+				  
+					$("#deletedialog").dialog('option', 'buttons', {
+						 "Delete" : function() {
+									window.location.href = theHREF;
+							  },
+						 "Cancel" : function() {
+									$(this).dialog("close");
+							  }
+					});
+					
+					// open the dialog
+					$("#deletedialog").dialog("open");
+				});	
+			});
+	
+</script>
+<div class="hidden" id="approvedialog" title="<?php echo $this->translate('timesheet_button_approve'); ?>"><?php echo $this->translate('timesheet_approve_confirmation'); ?></div>
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('timesheet_button_delete'); ?>"><?php echo $this->translate('timesheet_delete_confirmation'); ?></div>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <tr>
+    <td colspan="2"><label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <?php if ((!isEmptyString($request->id)) and ($userid != $timesheet->getEmployeeID())) { ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("timesheet_employee_label"); ?>:</td>
+    <td><?php echo $timesheet->getEmployee()->getName(); ?></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("timesheet_weekendingdate_label"); ?>:</td>
+    <td><?php echo date($config->dateandtime->mediumformat, strtotime($timesheet->getWeekendingDate())); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("timesheet_status_label"); ?>:</td>
+    <td><?php echo $timesheet->getStatusDescription(); ?></td>
+  </tr>
+</table>
+<br  />
+<table class="formtable" id="timesheetdata">
+  <?php $weekdays = $timesheet->getDatesForDaysOfTheWeek(); ?>
+  <thead>
+    <tr>
+      <td><?php echo $this->translate("timesheet_project_label"); ?></td>
+      <?php foreach ($weekdays as $day=>$date){ ?>
+      <td align="center"><?php echo date("M d", strtotime($date))."<br>".strtoupper(date("D", strtotime($date))); ?></td>
+      <?php } ?>
+      <td align="center"><?php echo $this->translate("timesheet_totalhours_label"); ?></td>
+    </tr>
+  </thead>
+  <?php 
+		$grandtotal = 0; 
+		foreach($employeeprojectassignments as $projectassignment) {	
+	?>
+  <tr>
+    <td class="label"><?php echo $projectassignment->getProject()->getTitle(); ?></td>
+    <?php foreach($weekdays as $theday) {
+				// check if this assignment has submitted timesheets
+				$key = $projectassignment->getProjectID().".".$theday;
+				$timesheetrecord = array();
+				if(isArrayKeyAnEmptyString($key, $timesheetdetailsarray)){
+					// do something
+					$timesheetrecord = $projectassignment->getBlankTimesheetRecord();
+				} else {
+					$timesheetrecord = $timesheetdetailsarray[$key];
+				}
+        	?>
+    <td align="center"><?php echo formatNumber($timesheetrecord['hours']); ?></td>
+    <?php } ?>
+    <td align="center"><?php echo formatNumber($timesheet->getProjectTotalHours($projectassignment->getProjectID())); $grandtotal = $grandtotal + $timesheet->getProjectTotalHours($projectassignment->getProjectID()); ?></td>
+  </tr>
+  <?php 
+	} ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("timesheet_total_label"); ?></td>
+    <?php foreach ($weekdays as $date){ ?>
+    <td align="center"><?php echo formatNumber($timesheet->getWeekdayTotalHours($date)); ?></td>
+    <?php } ?>
+    <td align="center"><?php echo formatNumber($grandtotal); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td colspan="10"><?php if ($acl->checkPermission('Timesheet', ACTION_DELETE)) { ?>
+        <?php 
+		// only timesheets that not approved can be deleted
+		if ($timesheet->allowDelete()) { ?>
+         <a href="<?php echo $this->baseUrl('timesheet/delete/entityname/Timesheet/id/'.encode($timesheet->getID()).'/'.SUCCESS_MESSAGE.'/timesheet_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("timesheet/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("timesheet_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("timesheet_button_delete"); ?></a>
+        <?php } ?>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_EDIT)) { 
+        		// check if the timesheet allows updates 
+        		if ($timesheet->allowUpdate()) {
+        ?>
+        <a href="<?php echo $this->baseUrl('timesheet/index/id/'.encode($timesheet->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("timesheet_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("timesheet_button_edit"); ?></a>
+        <?php 	} // end check whether the timesheet allows updates 
+        	} ?>
+          <?php if ($timesheet->isSaved() and $userid == $timesheet->getEmployeeID()) {
+		// give the user an option to submit it for approval
+		 ?>
+         <a href="<?php echo $this->baseUrl('timesheet/submitforapproval/id/'.encode($timesheet->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("timesheet_button_submitforapproval"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("timesheet_button_submitforapproval"); ?></a>
+        <?php } ?>
+        <?php 
+		  		if ($acl->checkPermission('Timesheet', ACTION_APPROVE)) { 
+					// show the reject button if the timesheet can be rejected
+					if ($timesheet->allowReject() and $userid != $timesheet->getEmployeeID()) {
+			?>
+        <a class="reject negativeaction" href="<?php echo $this->baseUrl('timesheet/confirmreject/timesheetid/'.encode($timesheet->getID())."/".PAGE_CONTENTS_ONLY."/true/".URL_SUCCESS.'/'.encode($this->baseUrl('timesheet/view/timesheetid/'.encode($timesheet->getID())))); ?>" title="<?php echo $this->translate("timesheet_button_reject"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("timesheet_button_reject"); ?></a>
+        <?php } // end check for whether timesheet can be rejected
+					if ($timesheet->allowApprove() and $userid != $timesheet->getEmployeeID()) {
+				?>
+        <a href="<?php echo $this->baseUrl('timesheet/approve/timesheetid/'.encode($timesheet->getID()).'/'.URL_SUCCESS.'/'.encode($this->baseUrl('timesheet/view/timesheetid/'.encode($timesheet->getID())))); ?>" class="approve positiveaction" title="<?php echo $this->translate("timesheet_button_approve"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("timesheet_button_approve"); ?></a>
+        <?php } // end check on whether the timesheet can be approved
+			 	} // end check for whether the user can approve timesheets
+		  	?>
+        <?php if ($acl->checkPermission('Timesheet', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('timesheet/list'); ?>" class="positiveaction" title="<?php echo $this->translate("timesheet_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("timesheet_button_list"); ?></a>
+        <?php } ?></td>
+    </tr>
+  </tfoot>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

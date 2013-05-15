@@ -1,0 +1,225 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';	
+	
+	$statusreport = new StatusReport(); 
+	$statusreport->populate(decode($request->id));
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("statusreport_pagetitle_view"); 
+	$this->headTitle($title);    
+	
+	// generate the temp file name to store the HTML contents
+	$timestamp = time().rand(100, 5000);
+	$temp_file_name = md5($timestamp).".html";
+	//debugMessage($temp_file_name);
+  
+	$url_to_generate_pdf = $this->baseUrl('dompdf/dompdf.php?base_path=temp/&input_file='.rawurlencode($temp_file_name));
+	//debugMessage("URL: ".$url_to_generate_pdf);
+  
+	$statusreport_html = "";
+?>
+<script>
+			$(document).ready(function(){
+				// approve dialog boxes
+				$("#deletedialog, #approvedialog, #dialog").dialog({
+							resizable: false,
+							height:140,
+							width:450,
+							modal: true,
+							autoOpen: false
+				}); 
+				$(".approve" ).click(function(e) {
+					  e.preventDefault();
+					  var theHREF = $(this).attr("href");
+					  
+					  $("#approvedialog").dialog('option', 'buttons', {
+							 "Approve" : function() {
+								  		window.location.href = theHREF;
+								  },
+							 "Cancel" : function() {
+								  		$(this).dialog("close");
+								  }
+						});
+						
+						// open the dialog
+						$("#approvedialog").dialog("open");
+				}); // close the approve dialog functionality 
+				$(".reject" ).click(function(e) {
+					  e.preventDefault();
+					  var url = $(this).attr('href');	
+					  $("#dialog").dialog('option', 'title', $(this).attr('title')); 
+					  // load the please wait contents 
+					  $("#dialog").html($("#dialog_contents").html()); 
+						//display the dialog content
+						$("#dialog").load(url);
+						// open the dialog
+						$("#dialog").dialog("open").height('auto');
+					}); // close the reject dialog functionlaity 
+					
+					// Confirm that the user wants to delete the timesheet
+				$(".delete").click(function(e){
+					e.preventDefault();
+					var theHREF = $(this).attr("href");
+				  
+					$("#deletedialog").dialog('option', 'buttons', {
+						 "Delete" : function() {
+									window.location.href = theHREF;
+							  },
+						 "Cancel" : function() {
+									$(this).dialog("close");
+							  }
+					});
+					
+					// open the dialog
+					$("#deletedialog").dialog("open");
+				});	
+			});
+				
+</script>
+
+<div class="hidden" id="approvedialog" title="<?php echo $this->translate('statusreport_button_approve'); ?>"><?php echo $this->translate('statusreport_approve_confirmation'); ?></div>
+<div class="hidden" id="deletedialog" title="<?php echo $this->translate('statusreport_button_delete'); ?>"><?php echo $this->translate('statusreport_delete_confirmation'); ?></div>
+<?php ob_start(); ?>
+<style type="text/css">
+table.formtable {
+	border-left:solid 1px #FFFFFF; color:
+	border-bottom:solid 1px #FFFFFF;
+	border-right:solid 1px #FFFFFF;
+	border-top:solid 1px #FFFFFF;
+}
+table.formtable td {
+	border-left:solid 1px #FFFFFF;
+	border-bottom:solid 1px #FFFFFF;
+	border-right:solid 1px #FFFFFF;
+	border-top:solid 1px #FFFFFF;
+}
+.heading {
+	font-size:16px;		
+}
+table.formtable td.label {
+	vertical-align:top;
+}
+</style>
+<table class="formtable">
+  <thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+  </thead>
+  <?php if ($sessionhaserror) { ?>
+  <tr>
+    <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <tr>
+    <td colspan="2"><label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label></td>
+  </tr>
+  <?php } ?>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_employee_label"); ?>:</td>
+    <td><?php echo $statusreport->getEmployee()->getName(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_project_label"); ?>:</td>
+    <td><?php echo $statusreport->getProject()->getTitle(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_weekendingdate_label"); ?>:</td>
+    <td><?php echo changeMySQLDateToPageFormat($statusreport->getWeekendingDate()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_status_label"); ?>:</td>
+    <td><?php echo $statusreport->getStatusDescription(); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_activities_label"); ?>:</td>
+    <td><?php echo nl2br($statusreport->getActivities()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_accomplishments_label"); ?>:</td>
+    <td><?php echo nl2br($statusreport->getAccomplishments()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_meetingsandpresentations_label"); ?>:</td>
+    <td><?php echo nl2br($statusreport->getMeetingsAndPresentations()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_issues_label"); ?>:</td>
+    <td><?php echo nl2br($statusreport->getIssues()); ?></td>
+  </tr>
+  <tr>
+    <td class="label"><?php echo $this->translate("statusreport_itemsforcotr_label"); ?>:</td>
+    <td><?php echo nl2br($statusreport->getItemsForCotr()); ?></td>
+  </tr>
+  <tfoot>
+    <tr>
+      <td>&nbsp;</td>
+      <td><?php if ($acl->checkPermission('Status Report', ACTION_DELETE)) { 
+        // only status reports that not approved can be deleted
+		if ($statusreport->allowDelete()) { ?>
+        <a href="<?php echo $this->baseUrl('statusreport/delete/entityname/StatusReport/id/'.encode($statusreport->getID()).'/'.SUCCESS_MESSAGE.'/statusreport_delete_success/'.URL_SUCCESS.'/'.encode($this->baseUrl("statusreport/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("statusreport_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("statusreport_button_delete"); ?></a>
+        <?php } ?>
+        <?php } ?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_EDIT)) { 
+        		// check if the timesheet allows updates 
+        		if ($statusreport->allowUpdate()) {
+        ?>
+        <a href="<?php echo $this->baseUrl('statusreport/index/id/'.encode($statusreport->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("statusreport_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("statusreport_button_edit"); ?></a>
+        <?php 	} // end check whether the timesheet allows updates 
+        	} ?>
+        <?php if ($statusreport->isSaved() and $userid == $statusreport->getEmployeeID()) {
+		// give the user an option to submit it for approval
+		 ?>
+        <a href="<?php echo $this->baseUrl('statusreport/submitforapproval/id/'.encode($statusreport->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("statusreport_button_submitforapproval"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("statusreport_button_submitforapproval"); ?></a>
+        <?php } ?>
+        <?php 
+		  		if ($acl->checkPermission('Status Report', ACTION_APPROVE)) { 
+					// show the reject button if the timesheet can be rejected
+					if ($statusreport->allowReject() and $userid != $statusreport->getEmployeeID()) {
+			?>
+        <a class="reject negativeaction" href="<?php echo $this->baseUrl('statusreport/confirmreject/statusreportid/'.encode($statusreport->getID())."/".PAGE_CONTENTS_ONLY."/true/".URL_SUCCESS.'/'.encode($this->baseUrl('statusreport/view/statusreportid/'.encode($statusreport->getID())))); ?>" title="<?php echo $this->translate("statusreport_button_reject"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("statusreport_button_reject"); ?></a>
+        <?php } // end check for whether timesheet can be rejected
+					if ($statusreport->allowApprove() and $userid != $statusreport->getEmployeeID()) {
+				?>
+        <a href="<?php echo $this->baseUrl('statusreport/approve/statusreportid/'.encode($statusreport->getID()).'/'.URL_SUCCESS.'/'.encode($this->baseUrl('statusreport/view/statusreportid/'.encode($statusreport->getID())))); ?>" class="approve positiveaction" title="<?php echo $this->translate("statusreport_button_approve"); ?>"><img src="<?php echo $this->baseUrl('images/tick.png'); ?>" /><?php echo $this->translate("statusreport_button_approve"); ?></a>
+        <?php } // end check on whether the timesheet can be approved
+			 	} // end check for whether the user can approve timesheets
+		  	?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_LIST)) { ?>
+        <a href="<?php echo $this->baseUrl('statusreport/list'); ?>" class="positiveaction" title="<?php echo $this->translate("statusreport_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("statusreport_button_list"); ?></a>
+        <?php } ?>
+        <a class="positiveaction" href="javascript:openPopUpWindow('<?php echo $url_to_generate_pdf; ?>');"><img src="<?php echo $this->baseUrl('images/pdf.gif'); ?>" /><?php echo $this->translate("statusreport_button_download_statusreport"); ?></a></td>
+    </tr>
+  </tfoot>
+</table>
+<?php 		
+	// for PROD, there we use public_html
+	$publicfolder = "/public/";
+	if (APPLICATION_ENV == "production") {
+		$publicfolder = "/public_html/";
+	}
+	$statusreport_html = ob_get_contents();
+	//$statusreport_html .= "<br /><br /><br /><span style=\"font-size:8px;\">Report generated from www.staff-atechra.com.com on ".date($config->dateandtime->reportgenerationtimestamp).". For more information contact support@staff-atechra.com</span>";
+	$printbutton_html = '<a class="positiveaction" href="javascript:openPopUpWindow(\''.$url_to_generate_pdf.'\');"><img src="'.$this->baseUrl("images/pdf.gif").'" />'.$this->translate("statusreport_button_download_statusreport").'</a>';
+	// remove the print button from the final HTML used to generate the PDF document
+	$statusreport_html = str_replace($printbutton_html, "", $statusreport_html);
+	
+	// Add the CSS to style the report for PDF generation 
+	$style_sheet = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-15"><style type="text/css">body, select, textarea, button, input, td {
+font-family: Arial, Helvetica, Tahoma, sans-serif;	
+font-size:14px;
+color:#555555;
+line-height: 1.2em;
+}</style></head>'; 
+
+	$session->setVar('statusreport', $style_sheet."<body>".$statusreport_html."</body></html>"); 
+
+	// write the HTML file to the file system
+	file_put_contents(str_replace("application", "", APPLICATION_PATH).$publicfolder."dompdf/temp/".$temp_file_name, $session->getVar('statusreport'));
+			
+	?>
+<?php
+	$clearsessionformvalues = true; 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

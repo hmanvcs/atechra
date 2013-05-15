@@ -1,0 +1,172 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	$title = ($this->translate("useraccount_pagetitle_signup_payment"));
+	$this->headMeta()->appendName('keywords', '');
+	$this->headMeta()->appendName('description', $title);
+	$this->headTitle($title); 
+	
+	// the usermaking the payment
+	$useraccount = new UserAccount();
+	$useraccount->populate(decode($request->id)); 
+?>
+<script>
+	$(document).ready(function() {
+		$("#paymentform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				creditcardno: {
+					required: true,
+					creditcard: true,
+					minlength: 16
+				},
+				expiremonth: {
+					required: true,
+					number: true,
+					min: 1,
+					max: 12
+				},
+				expireyear: {
+					required: true,
+					number: true
+				},
+				csc: {
+					required: true,
+					number: true,
+					rangelength: [3, 4]
+				},
+				firstname: "required",
+				lastname: "required",
+				address1: "required",
+				city: "required",
+				state: "required",
+				zipcode: {
+					required: true,
+					number: true
+				},
+				email: {
+					"required": true, 
+					email: true
+				},
+				phonenumber: {
+					required: true,
+					phoneUS: true
+				}
+			},
+			messages: {
+				creditcardno: {
+					required: "Please enter a credit card number",
+					minlength: "The credit card number cannot be less than 16 digits",
+					creditcard: "Please enter a valid credit card number"
+					
+				},
+				expiremonth: {
+					required: "Please enter the credit card expiration month",
+					number: "Please enter a valid number for expiration month",
+					min: "The expiration month has to be more than or equal to 1",
+					max: "The expiration month has to be less than or equal to 12"
+				},
+				expireyear: {
+					required: "Please enter the credit card expiration year",
+					number: "Please enter a valid number for expiration year"
+				},
+				csc: {
+					required: "Please enter the CSC for the credit card",
+					number: "Please enter a valid number for the CSC"
+				},
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				address1: "Please enter a billing address",
+				city: "Please enter the city",
+				state: "Please select a state",
+				zipcode: {
+					required: "Please enter a zip code",
+					number: "Please enter a valid zip code"
+				},
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},
+				phonenumber: {
+					"required": "<?php echo $this->translate("useraccount_phonenumber_error"); ?>", 
+					"phoneUS": "<?php echo $this->translate("useraccount_phonenumber_us_error"); ?>"
+				}
+			}
+		});
+	}); 
+</script>
+<h1><?php echo $title; ?></h1>
+<form id="paymentform" action="<?php echo $this->baseUrl('signup/paymentconfirmation'); ?>" method="post">
+  <table class="formtable">
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td class="label">Credit card number:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%"><input id="creditcardno" name="creditcardno" type="text" value="" /></td>
+    </tr>
+    <tr>
+      <td class="label">Expiration Date:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%">mm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yy<br/><input id="expiremonth" name="expiremonth" type="text" value="" size="2" style="width:20px;" /> / <input id="expireyear" name="expireyear" type="text" value="" size="2" style="width:20px;" /></td>
+    </tr><tr>
+      <td class="label">CSC:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="csc" name="csc" type="text" value="" style="width:50px;" /></td>
+    </tr><tr>
+      <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td width="99%"><input id="firstname" name="firstname" type="text" value="<?php echo $useraccount->getFirstName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="lastname" name="lastname" type="text" value="<?php echo $useraccount->getLastName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label">Address line 1:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="address1" name="address1" type="text" value="" /></td>
+    </tr>
+    <tr>
+      <td class="label">Address line 2:</td>
+      <td><input id="address2" name="address2" type="text" value="" /></td>
+    </tr>
+     <tr>
+      <td class="label">City/State:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td>
+      <input id="city" name="city" type="text" value="" />&nbsp;<?php 	
+				$cb = new Zend_Form_Element_Select('state',
+						array(
+						'multiOptions' => array_merge_maintain_keys(array(""=>""), getStates()), 
+						'view' => new Zend_View(),
+						'decorators' => array('ViewHelper')
+						)
+					);
+				$cb->setValue(""); 
+				echo $cb->render();	
+			?>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">ZIP Code:</td>
+      <td><input id="zipcode" name="zipcode" type="text" value="" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="phonenumber" name="phonenumber" type="text" value="<?php echo $useraccount->getPhoneNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="email" name="email" type="text" value="<?php echo $useraccount->getEmail(); ?>" /></td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td><a class="negativeaction" href="<?php echo $this->baseUrl('index'); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+        <button type="submit" class="positiveaction"><img src="<?php echo $this->baseUrl('images/signup.png'); ?>" /><?php echo $this->translate('useraccount_button_paynow'); ?></button>
+        <input type="hidden" id="id" name="id" value="<?php echo $request->id; ?>" />
+    </tr>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

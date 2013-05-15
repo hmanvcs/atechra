@@ -1,0 +1,249 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$vacation = new Vacation(); 
+	
+	// default title is to enable adding new vacation/sick time
+	$title = $this->translate("vacation_pagetitle_new"); 
+	$posturl = $this->baseUrl("vacation/create");
+	$button_title = $this->translate("vacation_button_new"); 
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$vacation->populate(decode($request->id));
+		$title = sprintf($this->translate("vacation_pagetitle_edit")); 
+		$button_title = $this->translate("vacation_button_edit");
+		$posturl = $this->baseUrl("vacation/edit"); 
+	}
+	if(!isEmptyString($request->employeeid)){ 
+		$vacation->setEmployeeID($request->employeeid);
+	}
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$vacation->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	if(!isEmptyString($vacation->getEmployeeID())){ 
+		$userid = $vacation->getEmployeeID();
+	}
+	if(isEmptyString($vacation->getEmployeeID())){ 
+		$vacation->setEmployeeID($userid);
+	}
+	//debugMessage($vacation->toArray());
+	
+	// the available PTO hours
+	$vacationhoursavailable = $vacation->getVacationHoursAvailable(); 
+	// when editing, we want to include the hours on the current request as available
+	if (!isEmptyString($request->id)) {
+		$vacationhoursavailable = ($vacation->getVacationHoursAvailable() + $vacation->getHours());
+		$vacation->vacationhoursavailable = $vacationhoursavailable;
+	}
+	//debugMessage("Available hours: ".$vacationhoursavailable);
+	
+	$this->headTitle($title);  
+	
+?>
+<script>
+	$(document).ready(function() {
+		// configure the date pickers
+		var startdateOpts = datepickerOpts; 
+		startdateOpts.minDate = new Date(); 
+		$("#startdate").datepicker(startdateOpts); 
+		$("#enddate").datepicker(datepickerOpts); 
+		
+		$("#vacationform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				employeeid: "required",
+				projectid: "required",
+				startdate: "required",
+				enddate: {
+					required: true,
+					enddateafterstartdate: true
+				}, 
+				notes: {
+					maxlength: 250
+				},
+				hours: {
+					max: function() {
+						return parseFloat($('#hoursavailable').val()); 
+					} 
+				} 
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				employeeid: "<?php echo $this->translate("vacation_employee_error"); ?>",
+				projectid: "<?php echo $this->translate("vacation_type_of_absence_error"); ?>",
+				startdate: "<?php echo $this->translate("vacation_startdate_error"); ?>",
+				enddate: {
+					required: "<?php echo $this->translate("vacation_enddate_error"); ?>",
+					enddateafterstartdate: "<?php echo $this->translate("vacation_enddate_afterstartdate_error"); ?>"
+				}, 
+				notes: {
+					maxlength: "<?php echo $this->translate("vacation_remarks_length_error"); ?>"
+				},
+				hours: {
+					max: "<?php echo sprintf($this->translate("vacation_hours_available_error"), $vacationhoursavailable) ; ?>"
+				} 
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				if (element.attr("id") == "startdate"){ 
+					error.appendTo("#startdate_error");
+				} else if (element.attr("id") == "enddate"){ 
+					error.appendTo("#enddate_error");
+				} else if (element.attr("id") == "employeeid"){ 
+					error.appendTo("#employeeid_error");
+				} else if (element.attr("id") == "projectid"){ 
+					error.appendTo("#projectid_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+		
+			// reload the page to the new week ending date 
+		$("#employeeid").change(function(){
+			var selectedemployee = $("#employeeid").val();
+			//alert("Selected date: " + selectedemployee);
+			// set the default dialog options
+			$("#confirmdialog").dialog(dialogOpts);
+			// add the dialog buttons 
+			$("#confirmdialog").dialog('option', 'buttons', {
+				 "Yes" : function() {
+					  			$(window.location).attr('href', "<?php echo $this->baseUrl('vacation/index/employeeid/'); ?>" + selectedemployee);	
+					  },
+				 "No" : function() {
+								 $("#employeeid").val($("#previousemployee").val());
+								 // update the chosen list for week ending date
+								 $("#employeeid").trigger("liszt:updated");
+								 $(this).dialog("close");
+					  }
+			});
+			// open the dialog 
+			$('#confirmdialog').dialog('open').height('auto');
+		});
+		
+		// compute the hours off that are being requested
+		$('#startdate, #enddate').change(function(){
+			var startdate = $("#startdate").datepicker('getDate'); 
+			var enddate = $("#enddate").datepicker('getDate'); 
+			
+			// do nothing if the start date and end date are not specified 
+			if (!startdate || !enddate) {
+				return; 
+			} 
+			// while each day has 24 hours, in PTO terms each day has 8 hours hence dividing by 3 to convert the actual hours
+			// into PTO hours. Also add 8 hours since the difference between the times ignores one day 
+			var hoursbetween = ((enddate - startdate)/ (1000 * 60 * 60 * 3)) + 8; 
+			
+			var daysrequested = hoursbetween / 8;
+			// display the hours 
+			$("#hoursrequestedDiv").html(hoursbetween.toFixed(1) +" hours ("+ daysrequested.toFixed(2) +" days)"); 
+			// set the hidden field to show the hours
+			$("#hours").val(hoursbetween); 
+		});
+		
+		// trigger a change on the start date to set off the hours between computation
+		$('#startdate').change();
+	}); 
+</script>
+<div id="confirmdialog" class="hidden" title="Confirm change of Employee">Please note changing the employee will reload the page, you will lose any data that you may have entered. Are sure you want to change it?</div>
+<form id="vacationform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_employee_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><?php if ($acl->checkPermission('Vacation', ACTION_ACCOUNT_LIST)) {		
+                $employeelookup = new LookupType(); 				
+                $employeelookup->setName("ALL_USERS");				
+                $employeedropdown = new Zend_Form_Element_Select('employeeid',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $employeelookup->getOptionValuesFromQuery()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $employeedropdown->setValue($userid);
+                echo $employeedropdown->render(); 
+        ?>
+        <input type="hidden" name="previousemployee" id="previousemployee" value="<?php echo $vacation->getEmployeeID(); ?>" />
+        <?php } else { ?>
+        <input type="hidden" name="employeeid" id="employeeid" value="<?php echo $vacation->getEmployeeID(); ?>" />
+        <?php echo $session->getVar("firstname")." ".$session->getVar("lastname"); ?>
+        <?php } ?>
+        <div id="employeeid_error"></div></td>             
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_type_of_absence_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $projectlookup = new LookupType(); 				
+                $projectlookup->setName("NON_BILLABLE_PROJECTS");				
+                $projectdropdown = new Zend_Form_Element_Select('projectid',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $projectlookup->getOptionValuesFromQuery()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $projectdropdown->setValue($vacation->getProjectID());
+                echo $projectdropdown->render(); 
+        ?><div id="projectid_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_startdate_label"); ?>:</td>
+      <td><input type="text" class="datefield startdate" name="startdate" id="startdate" value="<?php echo changeMySQLDateToPageFormat($vacation->getStartDate()); ?>" />
+        <div id="startdate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_enddate_label"); ?>:</td>
+      <td><input type="text" class="datefield" name="enddate" id="enddate" value="<?php echo changeMySQLDateToPageFormat($vacation->getEndDate()); ?>" />
+        <div id="enddate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_hoursavailable_label"); ?>:</td>
+      <td><div id="hoursavailableDiv"><?php echo $vacation->getFormattedHoursAvailable(); ?></div>
+        <input type="hidden" name="hoursavailable" id="hoursavailable" value="<?php echo $vacationhoursavailable; ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_hoursrequested_label"); ?>:</td>
+      <td><div id="hoursrequestedDiv"></div>
+        <input type="text" class="hidden" name="hours" id="hours" /></td>
+    </tr>
+    
+    <tr>
+      <td class="label"><?php echo $this->translate("vacation_notes_label"); ?>:</td>
+      <td><textarea class="expanding" name="notes" id="notes"><?php echo $vacation->getNotes(); ?></textarea></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("vacation/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Vacation" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($vacation->getID()); ?>" />
+          <input type="hidden" name="status" id="status" value="1" />
+       </td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

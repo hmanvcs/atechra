@@ -1,0 +1,157 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$details = new Project(); 
+	
+	// default title is to enable adding a new organisation
+	$title = $this->translate("project_pagetitle_new"); 
+	$posturl = $this->baseUrl("project/create");
+	$button_title = $this->translate("project_button_new"); 
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$details->populate(decode($request->id));
+		$title = sprintf($this->translate("project_pagetitle_edit")); 
+		$button_title = $this->translate("project_button_edit");
+		$posturl = $this->baseUrl("project/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$details->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		// configure the date pickers
+		var startdateOpts = datepickerOpts; 
+		$("#startdate").datepicker(startdateOpts); 
+		$("#enddate").datepicker(datepickerOpts); 
+		
+		$("#projectform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				clientid: "required",
+				title: "required",
+				jobnumber: "required",
+				type: "required",
+				enddate: {
+					enddateafterstartdate: true
+				}
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				clientid: "<?php echo $this->translate("project_client_error"); ?>",
+				title: "<?php echo $this->translate("project_title_error"); ?>",
+				jobnumber: "<?php echo $this->translate("project_jobnumber_error"); ?>",
+				type: "<?php echo $this->translate("project_type_error"); ?>",
+				enddate: {
+					enddateafterstartdate: "<?php echo $this->translate("project_enddate_afterstartdate_error"); ?>"
+				}
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				if (element.attr("id") == "startdate"){ 
+					error.appendTo("#startdate_error");
+				} else if (element.attr("id") == "enddate"){ 
+					error.appendTo("#enddate_error");
+				} else if (element.attr("id") == "clientid"){ 
+					error.appendTo("#clientid_error");
+				} else if (element.attr("id") == "type"){ 
+					error.appendTo("#type_error");
+				} else { 
+					error.insertAfter(element);
+				}
+			}
+		});
+	}); 
+</script>
+<form id="projectform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_jobnumber_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="jobnumber" id="jobnumber" value="<?php echo $details->getJobNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_title_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="title" id="title" value="<?php echo $details->getTitle(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_client_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $clientlookup = new LookupType(); 				
+                $clientlookup->setName("ALL_CLIENTS");				
+                $clientdropdown = new Zend_Form_Element_Select('clientid',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $clientlookup->getOptionValuesFromQuery()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $clientdropdown->setValue($details->getClientID());
+                echo $clientdropdown->render(); 
+        ?><div id="clientid_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_type_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php		
+                $projecttypelookup= new LookupType(); 				
+                $projecttypelookup->setName("PROJECT_TYPES");				
+                $projecttypedropdown = new Zend_Form_Element_Select('type',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), $projecttypelookup->getOptionValuesAndDescription()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                                
+                $projecttypedropdown->setValue($details->getType());
+                echo $projecttypedropdown->render(); 
+        ?><div id="type_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_startdate_label"); ?>:</td>
+      <td><input type="text" class="datefield startdate" name="startdate" id="startdate" value="<?php echo changeMySQLDateToPageFormat($details->getStartDate()); ?>" />
+        <div id="startdate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_enddate_label"); ?>:</td>
+      <td><input type="text" class="datefield" name="enddate" id="enddate" value="<?php echo changeMySQLDateToPageFormat($details->getEndDate()); ?>" />
+        <div id="enddate_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("project_description_label"); ?>:</td>
+      <td><textarea class="expanding" name="description" id="description"><?php echo $details->getDescription(); ?></textarea></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("project/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Project" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($details->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

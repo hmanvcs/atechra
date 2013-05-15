@@ -1,0 +1,294 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$file = new CorporateFile(); 
+	
+	// default title is to enable adding new task
+	$title = $this->translate("corporatefile_pagetitle_new"); 
+	$posturl = $this->baseUrl("corporatefile/create");
+	$button_title = $this->translate("corporatefile_button_save");
+	// set parent id
+	if(!isEmptyString($request->folderid)){
+		$file->setFolderID($request->folderid);		
+	} else {
+		$file->setFolderID(1);
+	}	
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$file->populate(decode($request->id));
+		$title = sprintf($this->translate("corporatefile_pagetitle_edit")); 		
+		$posturl = $this->baseUrl("corporatefile/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$file->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+
+?>
+<script>
+$(document).ready(function() {
+	// add the validation for name
+	$.validator.addMethod("validname", function(value, element, params) { 
+		if (IsValidName(value)) {
+			return true; 
+		}
+		return false;        
+	}, "<?php echo $this->translate("corporatefile_filename_valid_error"); ?>");
+	// validation for existing files in same folder
+	$.validator.addMethod("validfile", function(value, element, params) { 
+		var str = $("#filesarray").val();
+		var strArray = str.split(",");
+		if(!isValueInArray(strArray, value) || str == ''){
+			return true;
+		}
+		return false;        
+	}, "<?php echo $this->translate("corporatefile_filename_unique_error"); ?>");
+	
+	// validation
+	$("#fileform").validate({		
+		// define the validation rules one field at a time
+		rules: {
+			filename: {
+				required: true,
+				maxlength: "50",
+				validname: true,
+				validfile: true
+			}
+		}, 
+		// the messages for each of the fields being validated
+		messages: {
+			filename: {
+				required: "<?php echo $this->translate("corporatefile_filename_error"); ?>",
+				maxlength: "<?php echo sprintf($this->translate("corporatefile_filename_length_error"), 50); ?>"
+			}
+		},
+		// custom error positions
+		errorPlacement: function(error, element) {
+			switch(element.attr("name")){
+				<?php for($v = 1; $v <= 5; $v++) { ?>						
+					case 'filename_<?php echo $v; ?>':
+						error.appendTo("#filename_error_<?php echo $v; ?>")
+						break;					
+				<?php } ?>
+					case 'filename':
+						error.appendTo("#filename_error")
+						break;						
+				default:
+					error.insertAfter(element);
+					break;
+			}			
+		}
+	});
+	
+	// disable hidden fields in hidden rows
+	$('table.visible_row input, table.visible_row textarea').attr("disabled", false);
+	$('table.hidden_row input, table.hidden_row textarea').attr("disabled", true);
+	
+	var pgloadheight = $("#contentcolumn").height();
+	$("#showfiles").change(function(){
+		var id = $(this).val();		
+		var maxrows = 5;
+		var i=1;
+		for(i=0; i<=maxrows; i++){
+			if(i <= id){
+				$('table#'+i).removeClass('hidden_row').addClass('visible_row');
+				$('table.visible_row input, table.visible_row textarea').attr("disabled", false);
+				
+			} else {
+				$('table#'+i).removeClass('visible_row').addClass('hidden_row');
+				$('table.hidden_row input, table.hidden_row textarea').attr("disabled", true);
+			}
+		}
+		// resize contentcontainer
+		$("#contentcolumn").css({'height': pgloadheight + 150*(id-1)});
+	});
+	
+	// check that name is a valid string
+	function IsValidName(value){
+		var regexp = /^[a-zA-Z0-9 _.]+$/;
+		if (value.search(regexp) == -1) { 
+			return false;
+		} else { 
+			return true;
+		}
+	}
+	
+	// check if value exists in an array
+	function isValueInArray(arr, val) {
+		inArray = false;
+		for (i = 0; i < arr.length; i++){
+			if (val == arr[i]){
+				inArray = true;
+			}
+		}
+		return inArray;
+	}
+}); 
+</script>
+<style>
+table.formtable {
+	margin-bottom:10px;
+}
+select.multipleselect {
+	width:95%;
+}
+.hidden_row {
+	display:none;
+}
+</style>
+<form id="fileform" action="<?php echo $posturl; ?>" method="post" enctype="multipart/form-data">
+<table class="formtable">
+    <thead>
+        <tr>
+            <td colspan="2"><?php echo $title; ?>
+				<?php if(isEmptyString($request->id)){ ?>
+                	&nbsp;to&nbsp; Location: &nbsp;<b><?php echo generateFolderBreadcrumb($file->getID()); ?></b>
+                <?php } ?>
+            </td>
+        </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>      
+        <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>    
+    <tr>
+        <td class="label">
+        	<?php if(isEmptyString($request->id)){ ?>
+                Number of Files: &nbsp;
+                <select id="showfiles">
+                <?php  for($p=1; $p<=5; $p++){	
+                    $selected = "";
+                    if($p==1){
+                        $selected = 'selected="selected"';
+                    }
+                ?>
+                    <option  value="<?php echo $p; ?>"><?php echo $p; ?></option>
+                <?php } ?>
+                </select>
+			<?php } ?>            
+        </td>
+        <td><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <?php if(!isEmptyString($request->id)){ ?>
+    <tr>
+        <td class="label"><?php echo $this->translate("corporatefile_filename_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="filename" id="filename" value="<?php echo str_replace('.'.$file->getExtension(), '', $file->getFileName()); ?>" />.<?php echo $file->getExtension(); ?>           
+            <input type="hidden" id="currentfile" name="currentfile" value="<?php echo $file->getFileName(); ?>" />            
+            <div id="filename_error"></div>
+        </td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("corporatefile_title_label"); ?>: </td>
+        <td><input type="text" name="title" id="title" value="<?php echo $file->getTitle(); ?>" /></td>
+    </tr>    
+    <tr>
+        <td class="label"><?php echo $this->translate("corporatefile_description_label"); ?>:</td>
+        <td><textarea class="expanding" name="description" id="description"><?php echo $file->getDescription(); ?></textarea></td>
+    </tr>
+    <?php } ?>
+    </table>
+	<?php if(isEmptyString($request->id)){ ?>
+        <?php 
+            for($p=1; $p<=5; $p++){
+                $class = 'visible_row';
+                if($p > 1){
+                    $class = 'hidden_row';
+                }
+        ?>
+            <table class="formtable <?php echo $class; ?>" id="<?php echo $p; ?>">  
+                <tbody id="filesection_<?php echo $p; ?>">    
+                    <tr>
+                        <td class="label"><?php echo $this->translate("corporatefile_file_label"); ?>: <?php echo $this->translate("required_field_marker"); ?></td>
+                        <td>
+                            <div id="newsamplechapter">
+                            <input type="file" name="filename_<?php echo $p; ?>" id="filename_<?php echo $p; ?>" class="filename_<?php echo $p; ?> {required: true, maxlength: 50, validfile: true, messages: {required: 'Please Browse a file', maxlength: '<?php echo sprintf($this->translate("folder_name_length_error"), 50); ?>'}}" /> <br /><i><?php echo sprintf($this->translate("corporatefile_maxsize_label"), formatBytes($config->document->maximumfilesize), NULL, NULL, FALSE) ?></i>
+                            </div>                            
+                            <input type="hidden" id="currentfile_<?php echo $p; ?>" name="currentfile_<?php echo $p; ?>" value="" />
+                            <input type="hidden" id="row_filename_<?php echo $p; ?>" name="row_filename_<?php echo $p; ?>" value="<?php echo $p; ?>" />
+                            <div id="filename_error_<?php echo $p; ?>"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="label"><?php echo $this->translate("corporatefile_title_label"); ?>: </td>
+                        <td><input type="text" name="title_<?php echo $p; ?>" id="title_<?php echo $p; ?>" value="" /></td>
+                        </tr>    
+                        <tr>
+                        <td class="label"><?php echo $this->translate("corporatefile_description_label"); ?>:</td>
+                        <td><textarea class="expanding" name="description_<?php echo $p; ?>" id="description_<?php echo $p; ?>"></textarea></td>
+                    </tr>
+                </tbody>
+            </table>
+        <?php } ?>
+    <?php } ?>
+    <?php if(!isEmptyString($request->id)){ ?>
+    	<?php if ($acl->checkPermission('Application Settings', ACTION_VIEW)) { ?>
+        <table class="formtable">
+            <thead>
+                <tr>
+                    <td colspan="2">File Permissions</td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="label">Allowed by Default:</td>
+                    <td><?php echo $file->grantList(); ?></td>
+                </tr>
+                <tr>
+                    <td class="label">Deny Access:</td>
+                    <td><?php // echo $folder->deniedList(); ?> <br />
+                    <?php
+                          $listdropdown = new Zend_Form_Element_Multiselect('deniedlistids',
+                                  array(
+                                          'multiOptions' => getAllSystemUsersWithFlag($userid),
+                                          'view' => new Zend_View(),
+                                          'decorators' => array(array('ViewHelper')),
+                                          'class' => array('chzn-select','multipleselect')
+                                  )
+                          );
+                          
+                          $listdropdown->setValue($file->getDeniedIDs());
+                          $listdropdown->setAttrib("data-placeholder", 'Select users to deny access');
+                          echo $listdropdown->render();
+                      ?>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <?php } ?>
+    <?php } ?>
+    <table class="formtable">  
+        <tfoot>
+            <tr>
+                <td align="right" style="width:200px;"><a href="<?php echo $this->baseUrl("corporatefile/list/parentid/".$file->getFolderID()); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;&nbsp;</td>
+                <td><button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+                    <input type="hidden" name="entityname" value="CorporateFile" />          
+                    <input type="hidden" id="id" name="id" value="<?php echo encode($file->getID()); ?>" />
+                    <input type="hidden" id="folderid" name="folderid" value="<?php echo $file->getFolderID(); ?>" />
+                    <input type="hidden" id="parentpath" name="parentpath" value="<?php echo $file->getFolder()->getAbsoluteFolderPath(); ?>" />
+                    <input type="hidden" id="<?php echo URL_SUCCESS; ?>" name="<?php echo URL_SUCCESS; ?>" value="<?php echo encode($this->baseUrl('corporatefile/list/parentid/'.$file->getFolderID())); ?>" />
+                    <?php if(isEmptyString($request->id)){ 
+						$session->setVar('custom_failure_url', encode($this->baseUrl('corporatefile/index/folderid/'.$file->getFolderID())));
+					?>
+                    	<input type="hidden" id="<?php echo SUCCESS_MESSAGE; ?>" name="<?php echo SUCCESS_MESSAGE; ?>" value="<?php echo 'corporatefile_upload_success'; ?>" />
+                        <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl('corporatefile/index/folderid/'.$file->getFolderID())); ?>" />    
+                        <input type="hidden" id="filesarray" name="filesarray" value="<?php echo $file->getFolder()->getArrayOfFiles(); ?>" />
+                   	<?php } else { 
+						$session->setVar('custom_failure_url', encode($this->baseUrl('corporatefile/index/id/'.$file->getID())));
+					?> 
+                    	<input type="hidden" id="<?php echo SUCCESS_MESSAGE; ?>" name="<?php echo SUCCESS_MESSAGE; ?>" value="<?php echo 'corporatefile_renamefile_success'; ?>" />
+                        <input type="hidden" id="<?php echo URL_FAILURE; ?>" name="<?php echo URL_FAILURE; ?>" value="<?php echo encode($this->baseUrl('corporatefile/index/id/'.encode($file->getID()))); ?>" />
+                        <input type="hidden" id="filesarray" name="filesarray" value="<?php echo $file->getFolder()->getArrayOfFilesWithoutExt($file->getID()); ?>" />
+                    <?php } ?> 
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

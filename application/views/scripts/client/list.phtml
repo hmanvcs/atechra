@@ -1,0 +1,119 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate('client_pagetitle_list');
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("c.name"));
+	$paginate->setFilterColumns(array("c.type"));
+	$paginate->setDefaultSortBy("c.name");	
+	$paginate->setDefaultSortOrder("ASC");
+
+	$paginate->processPost($request->getParams());
+	$all_results_query = "SELECT c.id, c.name as `Client Name`, c.city as `City`, c.state as `State`, c.fax as `Fax`, c.zipcode as `Zip Code`, c.phonenumber as `Phone Number`, c.contactperson as `Contact Person`, c.email as `Email` FROM client as c WHERE c.id <> '' ".$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 1;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<style></style>
+<form action="<?php echo $this->baseUrl("client/listsearch"); ?>" method="get" id="clientform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td>&nbsp;</td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="informationmessage"><?php echo $this->translate('client_list_norecords'); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("client_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Client', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table class="list">
+    <caption>
+    <?php echo $title; ?>
+    </caption>
+    <thead>
+      <tr>
+        <?php if ($acl->checkPermission('Client', ACTION_EDIT)) { ?>
+        <td>Edit</td>
+        <?php }?>
+        <td><?php echo $paginate->getSortLinkForColumn('c.name', $this->translate("client_name_label")); ?></td>
+        <td><?php echo $this->translate('client_city_label'); ?></td>
+        <td><?php echo $this->translate('client_state_label'); ?></td>
+        <td><?php echo $this->translate('client_fax_label'); ?></td>
+        <td><?php echo $this->translate('client_phonenumber_label'); ?></td>
+        <td><?php echo $this->translate('client_contactperson_label'); ?></td>
+        <td><?php echo $this->translate('client_email_label'); ?></td>
+      </tr>
+    </thead>
+    <tbody>
+      <?php 				  		
+            	foreach($result as $line){							
+            ?>
+      <tr>
+        <?php if ($acl->checkPermission('Client', ACTION_EDIT)) { ?>
+        <td align="center"><a href="<?php echo $this->baseUrl("client/index/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("client_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="<?php echo $this->translate("client_button_edit"); ?>" /></a></td>
+        <?php }?>
+        <td><a href="<?php echo $this->baseUrl("client/view/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("client_button_view"); ?>"><?php echo $line['Client Name']; ?></a></td>
+        <td><?php echo $line['City']; ?></td>
+        <td><?php echo $line['State']; ?></td>
+        <td><?php echo $line['Fax']?></td>
+        <td><?php echo $line['Phone Number']; ?></td>
+        <td><?php echo $line['Contact Person']; ?></td>
+        <td><?php echo $line['Email']; ?></td>
+      </tr>
+      <?php 						
+			} // end processing results 
+		?>
+    </tbody>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

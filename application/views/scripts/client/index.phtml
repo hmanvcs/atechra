@@ -1,0 +1,278 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$client = new Client(); 
+	
+	// default title is to enable adding a new organisation
+	$title = $this->translate("client_pagetitle_new"); 
+	$posturl = $this->baseUrl("client/create");
+	$button_title = $this->translate("client_button_new"); 
+	
+	// set the organisation if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$client->populate(decode($request->id));
+		$title = sprintf($this->translate("client_pagetitle_edit")); 
+		$button_title = $this->translate("client_button_edit");
+		$posturl = $this->baseUrl("client/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$client->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+	$clientemails = $client->getEmailAddresses();
+	//debugMessage($clientemails->toArray());
+	//debugMessage($client->toArray());
+	$max_client_emailaddresses = $config->client->maximumrows;	
+	$rowsdisplayedfornew = $config->client->rowsdisplayedfornew;
+	
+	$hide_class = ""; 
+	if ($max_client_emailaddresses != 0) {
+		// the plan is not unlimited
+		if (intval($client->getEmailAddresses()->count()) <  intval($max_client_emailaddresses)) {
+			// do nothing
+		} else {
+			// hide the form 
+			$hide_class = " hidden "; 
+		}
+	} else {
+		// set the exact unlimited number of departments
+		$max_client_emailaddresses = 100;
+	}
+?>
+<script>
+	$(document).ready(function() {
+		// add class to required name fields
+		$.validator.addClassRules("emailvalidator", {
+		 	email: true		  
+		});
+		
+		$("#clientform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				name: "required",
+				address: "required",
+				city: "required",
+				state: "required",
+				zipcode: {
+					required: true,
+					number: true
+				}, 
+				email: {
+					required: true,
+					email: true
+				} ,
+				contactperson: "required"
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				name: "<?php echo $this->translate("client_name_error"); ?>",
+				address: "<?php echo $this->translate("client_address_error"); ?>",
+				city: "<?php echo $this->translate("client_city_error"); ?>",
+				state: "<?php echo $this->translate("client_state_error"); ?>",
+				zipcode: {
+					required: "<?php echo $this->translate("client_zipcode_error"); ?>",
+					number: "<?php echo $this->translate("client_zipcode_number_error"); ?>"
+				},
+				email: "<?php echo $this->translate("client_email_error"); ?>",
+				contactperson: "<?php echo $this->translate("client_contactperson_error"); ?>"
+			},
+			// update error location for content type
+			errorPlacement: function(error, element) {
+				switch(element.attr("id")){
+				//placement is only needed for chozen select fields since other field types
+				// already place the error messages at the bottom of the fields				
+				<?php for($v = 1; $v <= $config->client->maximumrows; $v++) { ?>						
+					case 'emailaddress_<?php echo $v; ?>':
+						error.appendTo("#errorcontainer_<?php echo $v; ?>")
+						break;	
+				<?php } ?>
+				case 'email':
+						error.appendTo("#email_error")
+						break;
+				case 'state':
+						error.appendTo("#state_error")
+						break;
+				default:
+					error.insertAfter(element);
+					break;
+				}
+				/*if (element.attr("id") == "state"){ 
+					error.appendTo("#state_error");
+				} else { 
+					error.insertAfter(element);
+				}*/
+			}
+		});
+		
+		// when a user clicks add new display the first hidden firm which is not shown
+		$("#addrow").click(showNewRule);		
+		function showNewRule() {					
+			$(".hidden_row:first").removeClass("hidden_row").addClass("visible_row");
+			// remove disabled attr from the fields
+			$("tr.visible_row input").attr("disabled", false);
+					
+			// hide or show add button
+			hideShowAdd();		
+			// reset height of content column
+			resizeContentForm();
+		}
+			
+		// delete a row
+		$(".remove").click(function(){			
+			var row_to_hide = $(this).attr('id');
+			if(window.confirm("Are you sure you want to remove this email address? \n Click 'OK' to confirm or 'Cancel' to stay on this page.")){
+				// $("tr."+row_to_hide).addClass("hidden_row").removeClass("visible_row");
+				$("tr."+row_to_hide).fadeOut('slow', function(){ $(this).addClass("hidden_row").removeClass("visible_row"); });
+				// $("input, select").attr("disabled", true);	
+				$("tr."+row_to_hide+" input, tr."+row_to_hide+" select, tr."+row_to_hide+" textarea").val('').attr("disabled", true);
+				// revalidate the hidden field
+				//$("form#causelistform").validate().element("tr."+row_to_hide+" select");
+				//$("form#causelistform").validate().element("tr."+row_to_hide+" textarea");
+				// hide or show add button
+				hideShowAdd();
+			
+			} else {
+				return false;
+			}
+		});	
+		
+		//if the maximum no of rows is added, hide the link to add another row
+		function hideShowAdd(){
+			//if the maximum no of rows is added, hide the link to add another row
+			var maxrows = '<?php echo $config->client->maximumrows; ?>';
+			if ($("tr.visible_row").size() == maxrows) {
+				$("#addrow").hide();
+			} else {
+				$("#addrow").show();			
+			}			
+		}
+	}); 
+</script>
+
+<form id="clientform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_name_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="name" id="name" value="<?php echo $client->getName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_address_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><textarea class="expanding" name="address" id="address"><?php echo $client->getAddress(); ?></textarea></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_city_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="city" id="city" value="<?php echo $client->getCity(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_state_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><?php $statedropdown = new Zend_Form_Element_Select('state',
+                                    array(
+										'multiOptions' => array_merge_maintain_keys(array('' => '<Select One>'), getStates()),						
+										'view' => new Zend_View(),
+                                        'decorators' => array(array('ViewHelper', array('escape' => true))),
+										'class' => array('chzn-select')					
+                                    )
+                                );
+                $statedropdown->setValue($client->getState());
+                echo $statedropdown->render(); 
+        ?>
+        <div id="state_error"></div></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_zipcode_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" maxlength="6" name="zipcode" id="zipcode" class="numberfield" value="<?php echo $client->getZipCode(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_phonenumber_label"); ?>:</td>
+      <td><input type="text" name="phonenumber" id="phonenumber" value="<?php echo $client->getPhoneNumber(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_fax_label"); ?>:</td>
+      <td><input type="text" name="fax" id="fax" value="<?php echo $client->getFax(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_email_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="email" id="email" value="<?php echo $client->getEmail(); ?>" />
+        <?php //if (isEmptyString($hide_class)) { ?>
+        <a href="javascript: doNothing();" id="addrow" title="Add Email Address">Add Another Email</a>
+        <?php //} ?>
+        <div id="email_error"></div></td>
+    </tr>
+    <?php
+		$emailaddress_count = $client->getEmailAddresses()->count();
+		$counter = 1;
+		for($i=0; $i < $emailaddress_count; $i++){	
+			$theemailaddress = $client->getEmailAddresses()->get($i);	
+			//debugMessage($theemailaddress->toArray());
+			$emailnamevalidateclass = "{required: true, email: true, messages: {email: '".$this->translate("client_email_error")."'}}";
+    ?>
+    <tr id="row_<?php echo $i; ?>" class="visible_row remove_<?php echo $i; ?>">
+      <td class="label"><?php echo $this->translate("client_alt_email_label"); ?> <?php echo $counter; ?>:</td>
+      <td><input type="text" class="emailvalidator" name="emailaddresses[<?php echo $i; ?>][emailaddress]" id="emailaddress_<?php echo $i; ?>" value="<?php echo $theemailaddress->getEmailAddress(); ?>" />
+        <a href="javascript: doNothing();" title="Remove" class="remove" id="remove_<?php echo $i; ?>"><img src="<?php echo $this->baseUrl("images/cross.png"); ?>" align="Remove Email Address" /></a> <br />
+        <div class="emailaddress_error_<?php echo $i; ?>" id="errorcontainer_<?php echo $i; ?>"></div></td>
+    </tr>
+    <?php $counter++;
+	} ?>
+    <?php 	
+		//debugMessage("i: ".$i); 
+		//debugMessage("counter: ".$counter);  
+		for($p=$i+1; $p < $max_client_emailaddresses; $p++){
+			//debugMessage("p: ".$p);
+			$class = "visible_row";
+			$defaultvisiblenameclass = "emailvalidator";
+			/*if($p > 1){
+				$class = "hidden_row";	
+				$defaultvisiblenameclass = "";			
+			}*/
+			$class = "visible_row" ;
+			if($p >= $config->client->rowsdisplayedfornew){	
+				$class = "hidden_row";
+				$defaultvisiblenameclass = "";	
+			}
+	?>
+    <tr id="row_<?php echo $p; ?>" class="new <?php echo $class; ?> remove_<?php echo $p; ?>">
+      <td class="label"><?php echo $this->translate("client_alt_email_label"); ?> <?php echo $counter; ?>:</td>
+      <td><input type="text" class="emailvalidator" name="emailaddresses[<?php echo $p; ?>][emailaddress]" id="emailaddress_<?php echo $p; ?>" value="<?php //echo $thedepartment->getName(); ?>" />
+        <?php if($p != 0){ ?>
+        <a href="javascript: doNothing();" title="Remove" class="remove" id="remove_<?php echo $p; ?>"><img src="<?php echo $this->baseUrl("images/cross.png"); ?>" align="Remove Email Address" /></a>
+        <?php } ?>
+        <br />
+        <div class="emailaddress_error_<?php echo $p; ?>" id="errorcontainer_<?php echo $p; ?>"></div></td>
+    </tr>
+    <?php $counter++;
+	} ?>
+    <tr>
+      <td class="label"><?php echo $this->translate("client_contactperson_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input type="text" name="contactperson" id="contactperson" value="<?php echo $client->getContactPerson(); ?>" /></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("client/list"); ?>" title="<?php echo $this->translate('global_button_cancel'); ?>"><?php echo $this->translate('global_button_cancel'); ?></a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="Client" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($client->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

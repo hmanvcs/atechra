@@ -1,0 +1,57 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$appconfig = new AppConfig();
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("appconfig_pagetitle_view"); 
+	$appconfig->populate(decode($request->id));
+		
+	$this->headTitle($title);  
+?>
+
+<table class="formtable">
+	<thead>
+		<tr>
+			<td colspan="2"><?php echo $title; ?></td>
+		</tr>
+	</thead>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_optionname_label"); ?>:</td>
+		<td><?php echo $appconfig->getOptionName(); ?></td>
+	</tr>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_description_label"); ?>:&nbsp;</td>
+		<td><?php echo nl2br($appconfig->getDescription()); ?></td>
+	</tr>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_optionvalue_label"); ?>:&nbsp;</td>
+		<td><?php echo $appconfig->getOptionValue(); ?></td>
+	</tr>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_section_label"); ?>:&nbsp;</td>
+		<td><?php echo $appconfig->getSection(); ?></td>
+	</tr>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_optiontype_label"); ?>:&nbsp;</td>
+		<td><?php echo $appconfig->getOptionType(); ?></td>
+	</tr>
+	<tr>
+		<td class="label"><?php echo $this->translate("appconfig_active_label"); ?>:&nbsp;</td>
+		<td><?php echo $appconfig->getActive() == "Y" ? 'Yes': 'No'; ?></td>
+	</tr>
+	<tfoot>
+		<tr>
+			<td>&nbsp;</td>
+			<td><?php if ($acl->checkPermission('Application Settings', ACTION_EDIT)) { ?>
+				<a href="<?php echo $this->baseUrl('appconfig/index/id/'.encode($appconfig->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("appconfig_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("appconfig_button_edit"); ?></a>
+				<?php } ?>
+				<?php if ($acl->checkPermission('Application Settings', ACTION_LIST)) { ?>
+				<a href="<?php echo $this->baseUrl('appconfig/list'); ?>" class="positiveaction" title="<?php echo $this->translate("appconfig_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("appconfig_button_list"); ?></a>
+				<?php } ?></td>
+		</tr>
+	</tfoot>
+</table>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

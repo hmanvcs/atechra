@@ -1,0 +1,113 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$appconfig = new AppConfig(); 
+	
+	// default title is to enable adding any payee
+	$title = $this->translate("appconfig_pagetitle_new"); 
+	$posturl = $this->baseUrl("appconfig/create");
+	$button_title = $this->translate("appconfig_button_new"); 
+	
+	// set the payee if provided in the url 
+	if (!isEmptyString($request->id)) {
+		$appconfig->populate(decode($request->id));
+		# debugMessage($appconfig->toArray());
+		$title = $this->translate("appconfig_pagetitle_edit"); 
+		$button_title = $this->translate("appconfig_button_edit");
+		$posturl = $this->baseUrl("appconfig/edit"); 
+	}
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$appconfig->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+	$this->headTitle($title);  
+?>
+<script>
+	$(document).ready(function() {
+		$("#appconfigform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				optionname: "required",
+				optionvalue: "required",
+				section: "required",
+				description: "required"				
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				optionname: "<?php echo $this->translate("appconfig_optionname_error"); ?>",
+				optionvalue: "<?php echo $this->translate("appconfig_optionvalue"); ?>",
+				section: "<?php echo $this->translate("appconfig_section_error"); ?>",
+				description: "<?php echo $this->translate("appconfig_description_error"); ?>"
+			}
+		});
+	}); 
+</script>
+<form id="appconfigform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+  	<thead>
+    <tr>
+      <td colspan="2"><?php echo $title; ?></td>
+    </tr>
+	 </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td class="label">&nbsp;</td>
+      <td><label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>    
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_optionname_label"); ?>:</td>
+        <td><?php echo $appconfig->getOptionName(); ?>
+        <input type="hidden" name="optionname" id="optionname" value="<?php echo $appconfig->getOptionName(); ?>" />
+        <input type="hidden" name="id" id="id" value="<?php echo $appconfig->getID(); ?>" /></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_description_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><textarea name="description" id="description" class="expanding"><?php echo nl2br($appconfig->getDescription()); ?></textarea></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_optionvalue_label"); ?>:&nbsp;<?php echo $this->translate("required_field_marker"); ?></td>
+        <td><input type="text" name="optionvalue" id="optionvalue" value="<?php echo $appconfig->getOptionValue(); ?>" /></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_section_label"); ?>:&nbsp;</td>
+        <td><?php echo $appconfig->getSection(); ?><input type="hidden" name="section" id="section" value="<?php echo $appconfig->getSection(); ?>" /></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_optiontype_label"); ?>:&nbsp;</td>
+        <td><?php echo $appconfig->getOptionType(); ?><input type="hidden" name="optiontype" id="optiontype" value="<?php echo $appconfig->getOptionType(); ?>" /></td>
+    </tr>
+    <tr>
+        <td class="label"><?php echo $this->translate("appconfig_active_label"); ?>:&nbsp;</td>
+        <td><?php			                      
+                $cb = new Zend_Form_Element_Select('active',
+                            array(
+                                'multiOptions' => array_merge_maintain_keys(array('' => 'Select One'), array('N'=>'No', 'Y' =>'Yes')),								'view' => new Zend_View(),
+                                'view' => new Zend_View(),
+                                'decorators' => array('ViewHelper'),
+                                'class' => array('filterselect')	
+                            )
+                );
+                $cb->setValue($appconfig->getActive()); 
+                echo $cb->render();	
+            ?></td>
+    </tr>    
+    <tfoot>
+      <tr>
+			<td>&nbsp;</td>
+        <td><a href="<?php echo $this->baseUrl("appconfig/list"); ?>" title="<?php echo $this->translate("global_button_cancel"); ?>"><?php echo $this->translate("global_button_cancel"); ?></a>&nbsp;&nbsp;
+          <button type="submit" class="positiveaction" id="submit" name="submit" title="<?php echo $button_title; ?>"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" /><?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="AppConfig" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($appconfig->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php 
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

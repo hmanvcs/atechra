@@ -1,0 +1,108 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$title = $this->translate("useraccount_pagetitle_employee_confirmaccount"); 
+	$button_title = $this->translate("useraccount_button_activate");
+	$posturl = $this->baseUrl("signup/employeeactivate"); 
+	
+	$this->headTitle($title);  
+	
+	# Set id of the record to populate. If no value in request, use session userid
+	$id = decode($request->id);	
+	
+	$employee = new UserAccount(); 
+	$employee->populate($id);
+	
+	#in case of errors in session, populate the fields from session
+	if(!isEmptyString($session->getVar(ERROR_MESSAGE))){ 
+		$employee->processPost($session->getVar(FORM_VALUES));	
+	}
+	
+?>
+<script>
+	$(document).ready(function() {
+		
+		$("#signupform").validate({		
+			// define the validation rules one field at a time
+			rules: {
+				firstname: "required",
+				lastname: "required",
+				email: {
+					"required": true, 
+					email: true
+				},
+				password: "required",
+				confirmpassword: {
+					required: true,
+					equalTo: "#password"
+				}
+			}, 
+			// the messages for each of the fields being validated
+			messages: {				
+				firstname: "<?php echo $this->translate("useraccount_firstname_error"); ?>",
+				lastname: "<?php echo $this->translate("useraccount_lastname_error"); ?>",
+				email: {
+					"required": "<?php echo $this->translate("useraccount_email_error"); ?>", 
+					"email": "<?php echo $this->translate("useraccount_email_invalid_error"); ?>"
+				},
+				password: "<?php echo $this->translate("useraccount_password_error"); ?>",
+				confirmpassword: {
+					required: "<?php echo $this->translate("useraccount_confirmpassword_error"); ?>",
+					equalTo: "<?php echo $this->translate("useraccount_confirmpassword_error_equalto"); ?>"
+				}
+			}
+		});
+	}); 
+</script>
+
+<form id="signupform" action="<?php echo $posturl; ?>" method="post">
+  <table class="formtable">
+    <thead>
+      <tr>
+        <td colspan="2"><?php echo $title; ?></td>
+      </tr>
+    </thead>
+    <?php if ($sessionhaserror) { ?>
+    <tr>
+      <td colspan="2"><?php echo $session->getVar(ERROR_MESSAGE); ?></td>
+    </tr>
+    <?php } ?>
+    <tr>
+      <td colspan="2"><?php echo $this->translate("required_field_info"); ?></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>: <span class="requiredmark">*</span></td>
+      <td><input type="text" id="firstname" name="firstname" value="<?php echo $employee->getFirstName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>: <span class="requiredmark">*</span></td>
+      <td><input type="text" id="lastname" name="lastname" value="<?php echo $employee->getLastName(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>: <span class="requiredmark">*</span></td>
+      <td><?php echo $employee->getEmail(); ?>
+        <input type="hidden" id="email" name="email" value="<?php echo $employee->getEmail(); ?>" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="password" name="password" type="password" /></td>
+    </tr>
+    <tr>
+      <td class="label"><?php echo $this->translate("useraccount_password_confirm_label"); ?>:<?php echo $this->translate("required_field_marker"); ?></td>
+      <td><input id="confirmpassword" name="confirmpassword" type="password" /></td>
+    </tr>
+    <tfoot>
+      <tr>
+        <td>&nbsp;</td>
+        <td><button type="submit" class="positiveaction" id="submit" name="submit"><img src="<?php echo $this->baseUrl("images/tick.png"); ?>" alt="<?php echo $button_title; ?>" />&nbsp;<?php echo $button_title; ?></button>
+          <input type="hidden" name="entityname" value="UserAccount" />
+          <input name="<?php echo URL_FAILURE; ?>" type="hidden" value="<?php echo encode($this->baseUrl("signup/activationerror")); ?>" />
+          <input name="<?php echo URL_SUCCESS; ?>" type="hidden" value="<?php echo encode($this->baseUrl("signup/employeeconfirmation")); ?>" />
+          <input type="hidden" id="id" name="id" value="<?php echo encode($employee->getID()); ?>" /></td>
+      </tr>
+    </tfoot>
+  </table>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

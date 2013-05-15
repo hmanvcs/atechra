@@ -1,0 +1,205 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	$useraccount = new UserAccount(); 
+	# Set id of the record to populate. If no value in request, use session userid
+	if(isEmptyString($request->id)){
+		$id = $userid;
+	} else {
+		$id = decode($request->id);
+	}
+	
+	$useraccount->populate($id);
+	$title = sprintf($this->translate("useraccount_pagetitle_view"), $useraccount->getName()); 
+	$this->headTitle($title); 
+	
+	$userupdatingownaccount = true; 
+	if($userid != $useraccount->getID()){
+		# admin user is view another profile
+		$userupdatingownaccount = false; 
+	} 
+	
+	$employee_project_assignments = $useraccount->getEmployeeProjectAssignments();
+	//debugMessage($employee_project_assignments);
+	//$useraccount->getProjectAssignments();
+	//debugMessage($useraccount->toArray(true));
+?>
+<script>
+	$(document).ready(function() {
+		$('#tabs').tabs({
+			// the selected tab
+			//selected: '<?php //echo $request->queue; ?>'
+		});
+		
+		// if user deactivates account, confirm action
+		$("#deactivate").click(function(){
+			// Confirm that the user wants to change their password
+			if(window.confirm("Are you sure you want to De-Activate this Account \n Click 'OK' to proceed or 'Cancel' to stay on this page")){				
+					document.location.href="<?php echo $this->baseUrl('profile/deactivate'); ?>";			
+				return true;
+			} else {
+				return false;
+			}
+		});
+		// if user deactivates account, confirm action
+		$("#resetpassword").click(function(){
+			var username = '<?php echo $useraccount->getName(); ?>';
+			// Confirm that the user wants to change their password
+			if(window.confirm("Are you sure you want to reset '"+username+"' password? \n Click 'OK' to proceed or 'Cancel' to stay on this page")){				
+				document.location.href="<?php echo $this->baseUrl("user/resetpassword/id/".encode($useraccount->getID())); ?>";			
+				return true;
+			} else {
+				return false;
+			}
+		});
+		
+		$("table.formtable .delete").click(function(){
+			if(window.confirm("Are you sure you want to delete this employee's account? \n Click OK to confirm or Cancel to stay on this page.")){
+				return true;
+			} else {
+				return false;
+			}
+		}); 
+	}); 
+</script>
+<style type="text/css">
+.ui-widget-content a {
+	color: #357ABF;
+}
+</style>
+<h1><?php echo $useraccount->getFirstName()." ".$useraccount->getLastName(); ?></h1>
+<div id="tabs">
+  <ul>
+    <li><a class="1" href="#biodata"><?php echo $this->translate('useraccount_section_biodata'); ?></a></li>
+    <li><a class="2" href="#projectassignment"><?php echo $this->translate('useraccount_section_projectassignments'); ?></a></li>
+  </ul>
+  <div id="biodata" class="ui-tabs-hide">
+    <table class="formtable">
+      <thead>
+        <tr>
+          <td colspan="2"><?php echo $title; ?></td>
+        </tr>
+      </thead>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_firstname_label"); ?>:</td>
+        <td><?php echo $useraccount->getFirstName(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_lastname_label"); ?>:</td>
+        <td><?php echo $useraccount->getLastName(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_email_label"); ?>:</td>
+        <td><?php echo $useraccount->getEmail(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_phonenumber_label"); ?>:</td>
+        <td><?php echo $useraccount->getPhoneNumber(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_jobtitle_label"); ?>:</td>
+        <td><?php echo $useraccount->getJobTitle(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_companyname_label"); ?>:</td>
+        <td><?php echo $useraccount->getCompanyName(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_companyaddress_label"); ?>:</td>
+        <td><?php echo nl2br($useraccount->getCompanyAddress()); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_password_label"); ?>:</td>
+        <td><?php if(!$userupdatingownaccount){ ?>
+          <a id="resetpassword" href="javascript: doNothing(); " title="Click here to reset user's Password">Reset Password</a>
+          <?php }else{ ?>
+          <a href="<?php echo $this->baseUrl('profile/changepassword'); ?>" title="Click here to change your Password">Change Password</a>&nbsp;
+          <?php } ?></td>
+      </tr>
+      <?php if(!$userupdatingownaccount){ ?>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_section_groups"); ?>:</td>
+        <td><?php echo $useraccount->displayGroups(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_maximumtimeoffhoursperyear_label"); ?>:</td>
+        <td><?php echo $useraccount->getMaximumTimeOffHoursPerYear(); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_isactive_label"); ?>: </td>
+        <td><?php echo ($useraccount->getIsActive() == intval(1)) ? $this->translate("useraccount_isactiveyes_label") : $this->translate("useraccount_isactiveno_label"); ?></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_emailnotification_label"); ?>: </td>
+        <td>
+        	<img src="<?php echo $useraccount->getReceiveTimesheetReminders() == intval(1) ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_timesheetemailnotification_label"); ?></b><br /><br />
+            <img src="<?php echo $useraccount->getReceiveStatusReportReminders() == intval(1) ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_statusreportemailnotifications_label"); ?></b></td>
+      </tr>
+      <tr>
+        <td class="label"><?php echo $this->translate("useraccount_corporatefilesettings_label"); ?>:</td>
+        <td>
+            <img src="<?php echo $useraccount->canViewFilesAndFolders() ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_viewfilesandfolders_label"); ?></b><br /><br />
+            <img src="<?php echo $useraccount->canUploadFiles() ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_uploadfiles_label"); ?></b><br /><br />
+            <img src="<?php echo $useraccount->canCreateFolders() ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_createfolders_label"); ?></b><br /><br />            
+            <img src="<?php echo $useraccount->canDeleteFiles() ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_deletefiles_label"); ?></b><br /><br />
+            <img src="<?php echo $useraccount->canDeleteFolders() ? $this->baseUrl('images/tick.png') : $this->baseUrl('images/cross.png'); ?>" /> &nbsp; <b><?php echo $this->translate("useraccount_deletefolders_label"); ?></b>
+		</td>
+      </tr>
+      
+      <?php } ?>
+      <tfoot>
+        <tr>
+          <td></td>
+          <td><?php if ($acl->checkPermission('User Account', ACTION_DELETE) && !$userupdatingownaccount) { ?>
+            <a href="<?php echo $this->baseUrl('profile/delete/entityname/UserAccount/id/'.encode($useraccount->getID()).'/'.SUCCESS_MESSAGE.'/The User Account has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("profile/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("useraccount_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("useraccount_button_delete"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('User Account', ACTION_EDIT)) { ?>
+            <a href="<?php echo $this->baseUrl('profile/index/id/'.encode($useraccount->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("useraccount_button_edit"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('User Account', ACTION_LIST)) { ?>
+            <a href="<?php echo $this->baseUrl('profile/list'); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("useraccount_button_list"); ?></a>
+            <?php } ?></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div id="projectassignment" class="ui-tabs-hide">
+    <table class="formtable">
+      <thead>
+        <tr>
+          <td><?php echo $this->translate("project_title_label"); ?></td>
+          <td><?php echo $this->translate('project_jobnumber_label'); ?></td>
+          <td><?php echo $this->translate('project_type_label'); ?></td>
+          <td><?php echo $this->translate('project_client_label'); ?></td>
+        </tr>
+      </thead>
+      <?php foreach($employee_project_assignments as $projectassignment) { ?>
+      <tr>
+        <td><a href="<?php echo $this->baseUrl("project/view/id/".encode($projectassignment['id'])); ?>" title="<?php echo $this->translate("project_button_view"); ?>"><?php echo $projectassignment['Project Title']; ?></a></td>
+        <td><?php echo $projectassignment['Job Number']; ?></td>
+        <td><?php echo $projectassignment['Type']; ?></td>
+        <td><?php echo $projectassignment['Client']; ?></td>
+      </tr>
+      <?php } ?>
+      <tfoot>
+        <tr>
+          <td>&nbsp;</td>
+          <td><?php if ($acl->checkPermission('User Account', ACTION_DELETE) && !$userupdatingownaccount) { ?>
+            <a href="<?php echo $this->baseUrl('profile/delete/entityname/UserAccount/id/'.encode($useraccount->getID()).'/'.SUCCESS_MESSAGE.'/The User Account has been successfully deleted/'.URL_SUCCESS.'/'.encode($this->baseUrl("profile/list"))); ?>" class="negativeaction delete" title="<?php echo $this->translate("useraccount_button_delete"); ?>"><img src="<?php echo $this->baseUrl('images/cross.png'); ?>" /><?php echo $this->translate("useraccount_button_delete"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('User Account', ACTION_EDIT)) { ?>
+            <a href="<?php echo $this->baseUrl('profile/index/id/'.encode($useraccount->getID())); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" /><?php echo $this->translate("useraccount_button_edit"); ?></a>
+            <?php } ?>
+            <?php if ($acl->checkPermission('User Account', ACTION_LIST)) { ?>
+            <a href="<?php echo $this->baseUrl('profile/list'); ?>" class="positiveaction" title="<?php echo $this->translate("useraccount_button_list"); ?>"><img src="<?php echo $this->baseUrl('images/arrow_undo.png'); ?>" /><?php echo $this->translate("useraccount_button_list"); ?></a>
+            <?php } ?></td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>

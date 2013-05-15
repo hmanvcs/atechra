@@ -1,0 +1,251 @@
+<?php
+	require_once APPLICATION_PATH.'/includes/header.php';
+	
+	# Page title
+	$title = $this->translate('statusreport_pagetitle_list');
+	$this->headTitle($title);
+	
+	# Create an instance of the class to handle the pagination
+	$paginate = new Pagination();	
+	$paginate->setView($this);
+	# set the search columns to be used on this list
+	$paginate->setSearchColumns(array("u.firstname", "u.lastname", "p.title", "c.name", ));
+	$paginate->setFilterColumns(array("sr.employeeid", "sr.status", "sr.projectid", "sr.clientid"));
+	$paginate->setDefaultSortBy("sr.weekendingdate");	
+	$paginate->setDefaultSortOrder("DESC");
+
+	$paginate->processPost($request->getParams());
+	
+	$current_user_filter = ""; 
+	
+	if (!$acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) {
+		// only show the current user's status reports 
+		$current_user_filter = " AND sr.employeeid = '".$userid."' ";
+	}
+	
+	$all_results_query = "SELECT sr.id, sr.employeeid, sr.projectid, sr.clientid, sr.status, CONCAT(u.firstname, ' ', u.lastname) AS `Employee`, DATE_FORMAT(sr.weekendingdate, '".$config->dateandtime->mysqlformat."') as 'Week Ending', p.title AS Project, c.name as Client, lv.lookupvaluedescription AS `Status`  FROM statusreport AS sr INNER JOIN client AS c ON sr.clientid = c.id INNER JOIN project AS p ON sr.projectid = p.id INNER JOIN lookuptypevalue lv ON (sr.status = lv.lookuptypevalue AND lv.lookuptypeid = 6) INNER JOIN useraccount AS u WHERE sr.employeeid = u.id ".$current_user_filter.$paginate->getSearchAndFilterSQL()." ".$paginate->getSortSQL();
+	//debugMessage($all_results_query);
+	
+	$paginate->setItemCountFromSQLQuery($all_results_query);
+	
+	$current_results_query = $all_results_query." ".$paginate->getSQLLimit();
+	//echo $current_results_query;
+	$session->setVar(ALL_RESULTS_QUERY, $all_results_query);
+	$session->setVar(CURRENT_RESULTS_QUERY, $current_results_query);
+	# the query string to be appended to the return to list URL
+	$session->setVar('list_query_string'.$request->getControllerName(), $request->getParams());
+	
+	$conn = Doctrine_Manager::connection(); 
+	$result = $conn->fetchAll($current_results_query);
+	$has_no_data = (count($result) == 0) ? true : false; 
+	
+	# This variable stores the number of redundant columns returned in the query so that when we are printing
+	# we are able to know how many columns to ignore. This variable is sent in the print URL
+	$number_of_redundant_columns = 4;
+	
+	# the columns which contain numbers in the invoice query
+	# Please note that the column count begins at 0
+	$export_number_column_list = "";
+	
+?>
+<script>
+$(document).ready(function(){
+	// approve dialog boxes
+	$("#approvedialog, #dialog").dialog({
+				resizable: false,
+				height:180,
+				width:450,
+				modal: true,
+				autoOpen: false
+	}); 
+	$(".approve" ).click(function(e) {
+		e.preventDefault();
+		var theHREF = $(this).attr("href");
+		
+		$("#approvedialog").dialog('option', 'buttons', {
+			 "Approve" : function() {
+						window.location.href = theHREF;
+				  },
+			  "Cancel" : function() {
+					$(this).dialog("close");
+			  }
+			  
+		});
+		
+		// open the dialog
+		$("#approvedialog").dialog("open");
+	}); // close the approve dialog functionality 
+	$(".reject" ).click(function(e) {
+		e.preventDefault();
+		var url = $(this).attr('href');	
+		$("#dialog").dialog('option', 'title', $(this).attr('title')); 
+		// load the please wait contents 
+		$("#dialog").html($("#dialog_contents").html()); 
+		//display the dialog content
+		$("#dialog").load(url);
+		// open the dialog
+		$("#dialog").dialog("open").height('auto');
+	}); // close the reject dialog functionlaity 
+});
+				
+</script>
+
+<div class="hidden" id="approvedialog" title="<?php echo $this->translate('statusreport_button_approve'); ?>"><?php echo $this->translate('statusreport_approve_confirmation'); ?></div>
+<form action="<?php echo $this->baseUrl("statusreport/listsearch"); ?>" method="get" id="statusreportform">
+  <table class="filtercontainer">
+    <tr>
+      <td><table class="filtersection">
+          <tr>
+            <td><?php		
+									 $clientlookup = new LookupType(); 				
+									 $clientlookup->setName("ALL_CLIENTS");		
+									 $values = $clientlookup->getOptionValuesFromQuery(); 
+									 
+									 if (!$acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) {
+										 // show only the projects assigned to the employee
+										 $values = getClientsForProjectAssignments($userid); 
+									 } 
+									 $projectdropdown = new Zend_Form_Element_Select('sr'.HTML_TABLE_COLUMN_SEPARATOR.'clientid',
+																array(
+														'multiOptions' => array_merge_maintain_keys(array('' => $this->translate('statusreport_list_filter_client')), $values),						
+														'view' => new Zend_View(),
+																	 'decorators' => array('ViewHelper'),
+														'class' => array('chzn-select')					
+																)
+														  );
+														  
+									 $projectdropdown->setValue($request->getParam('sr'.HTML_TABLE_COLUMN_SEPARATOR.'clientid'));
+									 echo $projectdropdown->render(); 
+						  ?></td>
+            <td><?php		
+									 $projectlookup = new LookupType(); 				
+									 $projectlookup->setName("ALL_PROJECTS");		
+									 $values = $projectlookup->getOptionValuesFromQuery(); 
+									 
+									 if (!$acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) {
+										 // show only the projects assigned to the employee
+										 $values = getProjectAssignments($userid); 
+									 } 
+									 $projectdropdown = new Zend_Form_Element_Select('sr'.HTML_TABLE_COLUMN_SEPARATOR.'projectid',
+																array(
+														'multiOptions' => array_merge_maintain_keys(array('' => $this->translate('statusreport_list_filter_project')), $values),						
+														'view' => new Zend_View(),
+																	 'decorators' => array('ViewHelper'),
+														'class' => array('chzn-select')					
+																)
+														  );
+														  
+									 $projectdropdown->setValue($request->getParam('sr'.HTML_TABLE_COLUMN_SEPARATOR.'projectid'));
+									 echo $projectdropdown->render(); 
+						  ?></td>
+            <td><?php			
+                        $statuslookup = new LookupType(); 
+                        $statuslookup->setName("TIMESHEET_STATUSREPORT_STATUS");
+                        $statusdropdown = new Zend_Form_Element_Select('sr'.HTML_TABLE_COLUMN_SEPARATOR.'status',
+                                    array(
+                                        'multiOptions' => array_merge_maintain_keys(array("" => $this->translate('statusreport_list_filter_status')), $statuslookup->getOptionValuesAndDescription()), 
+                                        'view' => new Zend_View(),
+                                        'decorators' => array('ViewHelper')
+                                    )
+                        );
+                        $statusdropdown->setValue($request->getParam('sr'.HTML_TABLE_COLUMN_SEPARATOR.'status')); 
+                        echo $statusdropdown->render();	
+                    ?></td>
+          </tr>
+        </table></td>
+      <td><table>
+          <tr>
+            <td><input class="filterselect" type="text" name="searchterm" id="searchterm" value="<?php echo $request->searchterm; ?>" title="<?php echo $this->translate('gloabl_search_term_text'); ?>" /></td>
+          </tr>
+          <tr>
+            <td><button type="submit" class="positiveaction" id="searchbutton" title="<?php echo $this->translate('list_searchbutton_title'); ?>"><img src="<?php echo $this->baseUrl("images/zoom_in.png"); ?>" alt="<?php echo $this->translate('list_searchbutton_title'); ?>"/><?php echo $this->translate('list_searchbutton_label'); ?></button></td>
+          </tr>
+        </table></td>
+    </tr>
+  </table>
+  <?php if(isNotAnEmptyString($session->getVar(SUCCESS_MESSAGE))){ ?>
+  <label class="successmessage"><?php echo $session->getVar(SUCCESS_MESSAGE); ?></label>
+  <?php } ?>
+  <?php if(isNotAnEmptyString($session->getVar(ERROR_MESSAGE))){ ?>
+  <label class="error"><?php echo $session->getVar(ERROR_MESSAGE); ?></label>
+  <?php } ?>
+  <?php // show a message that there are no items to display
+	if ($has_no_data) {
+?>
+  <label class="informationmessage"><?php echo $this->translate('statusreport_list_norecords'); ?></label>
+  <?php } else { ?>
+  <div id="counter"><?php echo sprintf($this->translate("statusreport_list_counter"), $paginate->getItemCounterText()); ?></div>
+  <div id="listcounter"><?php echo $this->listcountdropdown; ?></div>
+  <div id="print"><a title="<?php echo $this->translate('global_print_as'); ?>" href="<?php echo $this->baseUrl('index/printerfriendly/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns.'/'.PAGE_TITLE.'/'.$title); ?>" target="_blank"><?php echo $this->translate('global_print'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/printer.png'); ?>" alt="<?php echo $this->translate('global_print_as'); ?>" /></a></div>
+  <?php if ($acl->checkPermission('Client', ACTION_EXPORT)) { ?>
+  <div id="export"><a title="<?php echo $this->translate('global_export_as_excel'); ?>" href="<?php echo $this->baseUrl('index/exceldownload/'.EXPORT_NUMBER_COLUMN_LIST.'/'.$export_number_column_list.'/'.EXPORT_IGNORE_COLUMN_COUNT.'/'.$number_of_redundant_columns); ?>" target="_blank"><?php echo $this->translate('global_export_as'); ?>&nbsp;<img src="<?php echo $this->baseUrl('images/excel.png'); ?>" alt="<?php echo $this->translate('global_export_as_excel'); ?>" /></a></div>
+  <?php } ?>
+  <table class="list">
+    <caption>
+    <?php echo $title; ?>
+    </caption>
+    <thead>
+      <tr>
+        <?php if ($acl->checkPermission('Status Report', ACTION_EDIT)) { ?>
+        <td><?php echo $this->translate('global_list_action_edit'); ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_APPROVE)) { ?>
+        <td><?php echo $this->translate('global_list_action_approve'); ?></td>
+        <td><?php echo $this->translate('global_list_action_reject'); ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) { ?>
+        <td><?php echo $paginate->getSortLinkForColumn('u.firstname', $this->translate("statusreport_employee_label")); ?></td>
+        <?php } ?>
+        <td><?php echo $paginate->getSortLinkForColumn('sr.weekendingdate', $this->translate('statusreport_weekendingdate_label')); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('p.title', $this->translate("statusreport_project_label")); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('c.name', $this->translate("statusreport_client_label")); ?></td>
+        <td><?php echo $paginate->getSortLinkForColumn('sr.status', $this->translate("statusreport_status_label")); ?></td>
+      </tr>
+    </thead>
+    <tbody>
+      <?php 				  		
+			$statusreport = new StatusReport(); 		  		
+			foreach($result as $line){	
+				$statusreport->setStatus($line['status']); 						
+		?>
+      <tr>
+        <?php if ($acl->checkPermission('Status Report', ACTION_EDIT)) { ?>
+        	<td align="center">
+			<?php if (($statusreport->allowUpdate()) or ($acl->checkPermission('Status Report', ACTION_APPROVE))) { ?>
+            	<a href="<?php echo $this->baseUrl("statusreport/index/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("statusreport_button_edit"); ?>"><img src="<?php echo $this->baseUrl('images/edit.png'); ?>" alt="<?php echo $this->translate("statusreport_button_edit"); ?>" /></a>
+            <?php }?>
+            </td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_APPROVE)) { ?>
+        <td><?php if ($statusreport->allowApprove()) { ?>
+          <?php if ($userid != $line['employeeid']) { ?>
+          <a title="<?php echo $this->translate('statusreport_button_approve'); ?>" class="approve" href="<?php echo $this->baseUrl('statusreport/approve/statusreportid/'.encode($line['id']).'/'.URL_FAILURE.'/'.encode($this->baseUrl('statusreport/list/sr'.HTML_TABLE_COLUMN_SEPARATOR.'status/1/'))); ?>"><?php echo $this->translate('global_list_action_approve'); ?></a>
+          <?php } ?>
+          <?php } ?></td>
+        <td><?php if ($statusreport->allowReject()) { ?>
+          <?php if ($userid != $line['employeeid']) { ?>
+          <a title="<?php echo $this->translate('statusreport_button_reject'); ?>" href="<?php echo $this->baseUrl('statusreport/confirmreject/statusreportid/'.encode($line['id'])."/".PAGE_CONTENTS_ONLY."/true"); ?>" class="reject"><?php echo $this->translate('global_list_action_reject'); ?></a>
+          <?php } ?>
+          <?php } ?></td>
+        <?php }?>
+        <?php if ($acl->checkPermission('Status Report', ACTION_ACCOUNT_LIST)) { ?>
+        <td><?php echo $line['Employee']; ?></td>
+        <?php } ?>
+        <td><a href="<?php echo $this->baseUrl("statusreport/view/id/".encode($line['id'])); ?>" title="<?php echo $this->translate("statusreport_button_view"); ?>"><?php echo $line['Week Ending']; ?></a></td>
+        <td class="nowrapping"><?php echo $line['Project']?></td>
+        <td class="nowrapping"><?php echo $line['Client']?></td>
+        <td><?php echo $line['Status']?></td>
+      </tr>
+      <?php 						
+			} // end processing results 
+		?>
+    </tbody>
+  </table>
+  <?php			
+	} // end check that there are results    	
+?>
+  <div class="paginationlinks"><?php echo $paginate->getPaginationLinks(); ?></div>
+</form>
+<?php
+	require_once APPLICATION_PATH.'/includes/footer.php';
+?>
